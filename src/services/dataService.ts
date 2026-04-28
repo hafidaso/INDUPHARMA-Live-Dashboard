@@ -58,11 +58,26 @@ type ProductionResponse = {
   equipements: ProductionEquipement[];
 };
 
-function normalizeProductionResponse(raw: any): ProductionResponse {
-  const candidate = raw?.equipements ? raw : raw?.data?.equipements ? raw.data : raw?.result?.equipements ? raw.result : raw;
+function parseMaybeJson(value: any) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return value;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
 
-  const equipementsRaw = Array.isArray(candidate?.equipements)
-    ? candidate.equipements
+function normalizeProductionResponse(raw: any): ProductionResponse {
+  const root = parseMaybeJson(raw);
+  const candidate = root?.equipements ? root : root?.data?.equipements ? root.data : root?.result?.equipements ? root.result : root;
+  const metaCandidate = parseMaybeJson(candidate?.meta);
+  const equipementsCandidate = parseMaybeJson(candidate?.equipements);
+
+  const equipementsRaw = Array.isArray(equipementsCandidate)
+    ? equipementsCandidate
     : Array.isArray(candidate)
       ? candidate
       : [];
@@ -82,18 +97,18 @@ function normalizeProductionResponse(raw: any): ProductionResponse {
 
   return {
     meta: {
-      generated_at: String(candidate?.meta?.generated_at ?? new Date().toISOString()),
-      nb_equipements: Number(candidate?.meta?.nb_equipements ?? equipements.length),
+      generated_at: String(metaCandidate?.generated_at ?? new Date().toISOString()),
+      nb_equipements: Number(metaCandidate?.nb_equipements ?? equipements.length),
       equipements_ok: Number(
-        candidate?.meta?.equipements_ok ??
+        metaCandidate?.equipements_ok ??
           equipements.filter((e) => String(e.etat_global).toLowerCase() === 'ok').length
       ),
       equipements_alerte: Number(
-        candidate?.meta?.equipements_alerte ??
+        metaCandidate?.equipements_alerte ??
           equipements.filter((e) => Number(e.nb_alertes_ouvertes) > 0).length
       ),
       nb_alertes_total: Number(
-        candidate?.meta?.nb_alertes_total ??
+        metaCandidate?.nb_alertes_total ??
           equipements.reduce((sum, e) => sum + Number(e.nb_alertes_ouvertes || 0), 0)
       ),
     },
@@ -191,109 +206,7 @@ async function fetchProductionStatus(): Promise<ProductionResponse> {
 }
 
 // ---------------------------------------------------------------------------
-// MOCK DATA  (used as fallback when a sheet URL is not yet configured)
-// ---------------------------------------------------------------------------
-const machinesMock: Machine[] = [
-  { id: 'M01', name: 'Autoclave M02',    type: 'Stérilisateur', location: 'Zone A',   status: 'en_panne',   created_at: '2024-01-10' },
-  { id: 'M02', name: 'Compresseuse C01', type: 'Presse',         location: 'Zone B',   status: 'maintenance',created_at: '2024-01-12' },
-  { id: 'M03', name: 'Mélangeur B03',    type: 'Mélangeur',      location: 'Zone C',   status: 'active',     created_at: '2024-01-15' },
-  { id: 'M04', name: 'Remplisseuse R04', type: 'Conditionneuse', location: 'Zone D',   status: 'active',     created_at: '2024-02-01' },
-  { id: 'M05', name: 'Chambre Froide S05',type: 'Stockage',      location: 'Stockage', status: 'active',     created_at: '2024-01-05' },
-];
-
-const techniciansMock: Technician[] = [
-  { id: 'c2ffbc99-9c0b-4ef8-bb6d-6bb9bd380a33', name: 'Technicien Maintenance A', role: 'technicien_maintenance', email: 'tech.a@indupharma.local', phone: '+212600000001', is_available: true },
-  { id: 'f5ffbc99-9c0b-4ef8-bb6d-6bb9bd380a66', name: 'Responsable Qualité', role: 'responsable_qualite', email: 'qa@indupharma.local', phone: '+212600000002', is_available: true },
-  { id: 'f6ffbc99-9c0b-4ef8-bb6d-6bb9bd380a77', name: 'Technicien Maintenance B', role: 'technicien_maintenance', email: 'tech.b@indupharma.local', phone: '+212600000003', is_available: true },
-  { id: 'f7ffbc99-9c0b-4ef8-bb6d-6bb9bd380a88', name: 'Responsable Production', role: 'responsable_production', email: 'prod@indupharma.local', phone: '+212600000004', is_available: true },
-];
-
-const thresholdsMock: Threshold[] = [
-  { id: 'TH01', machine_id: 'M01', sensor_type: 'pression',    min_value: 1.0, max_value: 2.5, critical_value: 3.0, unit: 'bar' },
-  { id: 'TH02', machine_id: 'M01', sensor_type: 'temperature', min_value: 115, max_value: 125, critical_value: 130, unit: '°C'  },
-  { id: 'TH03', machine_id: 'M05', sensor_type: 'temperature', min_value: 2.0, max_value: 8.0, critical_value: 1.5, unit: '°C'  },
-];
-
-const sensorReadingsMock: SensorReading[] = [
-  { id: 'R01', machine_id: 'M01', device_id: 'ESP32-ST1', pressure:    2.6, status: 'warning',  severity: 'medium',   timestamp: new Date().toISOString() },
-  { id: 'R02', machine_id: 'M03', device_id: 'ESP32-MX1', temperature: 38.5,status: 'normal',   severity: 'low',      timestamp: new Date().toISOString() },
-  { id: 'R03', machine_id: 'M05', device_id: 'ESP32-CF1', temperature: 1.2, status: 'critical', severity: 'critical', timestamp: new Date().toISOString() },
-  { id: 'R04', machine_id: 'M02', device_id: 'ESP32-CP1', vibration:   8.4, status: 'warning',  severity: 'high',     timestamp: new Date().toISOString() },
-];
-
-const incidentsMock: Incident[] = [
-  { id: 'INC001', machine_id: 'M01', machine_name: 'Autoclave M02',     detected_at: '2026-04-28 09:45', severity: 'critical', description: 'Surpression détectée valve secondaire',               status: 'open',        created_by: 'auto' },
-  { id: 'INC002', machine_id: 'M02', machine_name: 'Compresseuse C01',  detected_at: '2026-04-28 10:30', acknowledged_at: '2026-04-28 10:45', severity: 'medium', description: 'Vibration excessive roulement B4', status: 'in_progress', created_by: 'manual', root_cause: 'Usure naturelle' },
-  { id: 'INC003', machine_id: 'M05', machine_name: 'Chambre Froide S05',detected_at: '2026-04-28 11:15', severity: 'critical', description: 'Température hors plage basse criteria GMP',            status: 'escalated',   created_by: 'auto' },
-];
-
-const maintenanceActionsMock: MaintenanceAction[] = [];
-
-const kpiLogsMock: KpiLog[] = [
-  { id: 'K01', machine_id: 'M01', machine_name: 'Autoclave M02',    date: '2026-04-28', downtime_minutes: 120, mtbf_hours: 4.5, mttr_minutes: 45, incident_count: 3, escalation_count: 1, closure_rate: 66  },
-  { id: 'K02', machine_id: 'M02', machine_name: 'Compresseuse C01', date: '2026-04-28', downtime_minutes: 45,  mtbf_hours: 12,  mttr_minutes: 15, incident_count: 1, escalation_count: 0, closure_rate: 100 },
-];
-
-// ---------------------------------------------------------------------------
-// Machine view + KPI summary — derived from live / mock data
-// ---------------------------------------------------------------------------
-function buildMachineView(
-  machines: Machine[],
-  sensorReadings: SensorReading[],
-  incidents: Incident[]
-): DashboardMachineView[] {
-  return machines.map((m) => {
-    const reading = sensorReadings.find((r) => r.machine_id === m.id);
-    const incident = incidents.find(
-      (i) => i.machine_id === m.id && (i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated')
-    );
-
-    const valueSummary = reading
-      ? reading.pressure    != null ? `P: ${reading.pressure} bar`
-      : reading.temperature != null ? `T: ${reading.temperature} °C`
-      : reading.vibration   != null ? `Vib: ${reading.vibration} mm/s`
-      : 'N/A'
-      : 'N/A';
-
-    return {
-      machine_id:          m.id,
-      machine_name:        m.name,
-      type:                m.type,
-      location:            m.location,
-      machine_status:      m.status,
-      latest_device:       reading?.device_id ?? '—',
-      latest_status:       reading?.status    ?? 'normal',
-      latest_severity:     reading?.severity  ?? 'low',
-      latest_value_summary: valueSummary,
-      active_incident:     incident?.id,
-      incident_status:     incident?.status,
-    } as DashboardMachineView;
-  });
-}
-
-function buildKpiSummary(
-  machines: Machine[],
-  incidents: Incident[],
-  kpiLogs: KpiLog[]
-): DashboardKpiSummary[] {
-  const active   = machines.filter((m) => m.status === 'active').length;
-  const total    = machines.length;
-  const openInc  = incidents.filter((i) => i.status === 'open' || i.status === 'escalated').length;
-  const totalDT  = kpiLogs.reduce((s, k) => s + k.downtime_minutes, 0);
-  const avgMTTR  = kpiLogs.length ? Math.round(kpiLogs.reduce((s, k) => s + k.mttr_minutes, 0) / kpiLogs.length) : 0;
-  const critical = incidents.filter((i) => i.severity === 'critical' && i.status !== 'closed').length;
-
-  return [
-    { metric: 'Machines actives', value: `${active}/${total}`, unit: '',    status: active < total ? 'warning' : 'normal',   note: active < total ? `${total - active} équipement(s) hors ligne` : 'Tous opérationnels' },
-    { metric: 'Incidents ouverts', value: String(openInc),     unit: '',    status: openInc > 0 ? 'critical' : 'normal',     note: openInc > 0 ? 'Intervention requise' : 'Aucun incident actif' },
-    { metric: 'Downtime total',    value: String(totalDT),     unit: 'min', status: totalDT > 100 ? 'warning' : 'normal',    note: 'Cumul du jour' },
-    { metric: 'MTTR moyen',        value: String(avgMTTR),     unit: 'min', status: avgMTTR <= 30 ? 'normal' : 'warning',    note: 'Objectif < 30 min' },
-    { metric: 'Alertes critiques', value: String(critical),    unit: '',    status: critical > 0 ? 'critical' : 'normal',    note: critical > 0 ? 'Risque GMP élevé' : 'Aucune alerte critique' },
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Sensor history generator (mock until live sensor history sheet is wired)
+// Sensor history generator
 // ---------------------------------------------------------------------------
 const generateHistory = (machineId: string, count: number, base: number, variance: number, unit: string) =>
   Array.from({ length: count }, (_, i) => ({
@@ -318,7 +231,7 @@ export async function fetchSheetData() {
       created_at: payload.meta.generated_at,
     }));
 
-    const technicians: Technician[] = techniciansMock;
+    const technicians: Technician[] = [];
 
     const sensorReadings: SensorReading[] = payload.equipements
       .map((e) => {
@@ -438,39 +351,18 @@ export async function fetchSheetData() {
       isConnected: true,
     };
   } catch (error) {
-    console.error("Data fetch error (using fallback):", error);
-
-    // Hard fallback to keep dashboard alive even on unexpected runtime issues.
-    const machines = machinesMock;
-    const technicians = techniciansMock;
-    const thresholds = thresholdsMock;
-    const sensorReadings = sensorReadingsMock;
-    const incidents = incidentsMock;
-    const maintenanceActions = maintenanceActionsMock;
-    const kpiLogs = kpiLogsMock;
-
-    const machineView = buildMachineView(machines, sensorReadings, incidents);
-    const kpiSummary = buildKpiSummary(machines, incidents, kpiLogs);
-
-    const histories: Record<string, any[]> = {};
-    machines.forEach((m) => {
-      const r = sensorReadings.find((s) => s.machine_id === m.id);
-      const base = r?.pressure ?? r?.temperature ?? r?.vibration ?? 22;
-      const variance = r?.pressure != null ? 0.8 : r?.vibration != null ? 4.0 : 5.0;
-      histories[m.id] = generateHistory(m.id, 12, base, variance, '');
-    });
-
+    console.error("Data fetch error (webhook only):", error);
     return {
-      machines,
-      technicians,
-      thresholds,
-      sensorReadings,
-      incidents,
-      maintenanceActions,
-      kpiLogs,
-      machineView,
-      kpiSummary,
-      histories,
+      machines: [],
+      technicians: [],
+      thresholds: [],
+      sensorReadings: [],
+      incidents: [],
+      maintenanceActions: [],
+      kpiLogs: [],
+      machineView: [],
+      kpiSummary: [],
+      histories: {},
       lastUpdate: new Date().toLocaleTimeString('fr-FR'),
       isConnected: false,
     };
