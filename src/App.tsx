@@ -237,9 +237,7 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-4">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 font-sans">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-              <Zap className="text-white w-7 h-7" />
-            </div>
+            <img src="/logo.png" alt="INDUPHARMA" className="h-12 w-auto" />
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
                 INDUPHARMA
@@ -968,9 +966,7 @@ export default function App() {
       {/* Footer */}
       <footer className="max-w-[1600px] mx-auto p-8 flex flex-col md:flex-row items-center justify-between border-t border-slate-200 mt-12 text-slate-400">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
-            <Zap className="w-4 h-4" />
-          </div>
+          <img src="/logo.png" alt="INDUPHARMA" className="h-8 w-auto" />
           <span className="text-xs font-black uppercase tracking-widest">© 2026 INDUPHARMA Industrial System</span>
         </div>
         <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest mt-6 md:mt-0">
