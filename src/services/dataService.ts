@@ -60,7 +60,7 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
     return count === 0 ? base : `${base}_${count}`;
   };
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     Papa.parse<T>(freshUrl, {
       download: true,
       header: true,
@@ -68,7 +68,10 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
       skipEmptyLines: true,
       dynamicTyping: true,
       complete: (results) => resolve(results.data),
-      error: (err) => reject(err),
+      error: (err) => {
+        console.warn("CSV fetch failed:", url, err);
+        resolve(null);
+      },
     });
   });
 }

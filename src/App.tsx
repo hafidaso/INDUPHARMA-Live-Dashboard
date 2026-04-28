@@ -230,6 +230,25 @@ export default function App() {
     </div>
   );
 
+  if (!data) return (
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center px-6">
+      <div className="bg-white border border-red-200 rounded-xl p-6 text-center max-w-md">
+        <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-3" />
+        <h2 className="text-slate-900 font-black text-lg">Data unavailable</h2>
+        <p className="text-slate-500 text-sm mt-2">
+          The dashboard could not load sheet data right now. Please retry in a few seconds.
+        </p>
+        <button
+          onClick={() => handleRefresh()}
+          className="mt-4 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold"
+        >
+          <RefreshCcw className="w-4 h-4" />
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#F7F4EE] text-slate-800 font-sans selection:bg-blue-600/10">
       
