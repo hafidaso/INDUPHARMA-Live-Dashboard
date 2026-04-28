@@ -40,6 +40,7 @@ type ProductionTechnicien = {
   role?: string;
   email?: string;
   phone?: string;
+  is_available?: boolean;
   status?: string;
   action_taken?: string;
   started_at?: string;
@@ -256,7 +257,10 @@ export async function fetchSheetData() {
         const status = String(t?.status ?? '').toLowerCase();
         const normalizedStatus =
           status === 'in_progress' || status === 'done' || status === 'blocked' ? status : 'not_yet';
-        const isAvailable = normalizedStatus !== 'in_progress' && normalizedStatus !== 'blocked';
+        const hasWebhookAvailability = typeof t?.is_available === 'boolean';
+        const isAvailable = hasWebhookAvailability
+          ? Boolean(t.is_available)
+          : normalizedStatus !== 'in_progress' && normalizedStatus !== 'blocked';
         const email = String(t?.email ?? `tech${index + 1}@indupharma.local`);
         return {
           id: String(t?.id ?? email ?? `TECH-${index + 1}`),
