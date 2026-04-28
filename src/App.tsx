@@ -237,10 +237,9 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-4">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 font-sans">
           <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="INDUPHARMA" className="h-12 w-auto" />
+            <img src="/logo.png" alt="INDUPHARMA" className="h-20 w-auto" />
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                INDUPHARMA
+              <div className="flex items-center gap-3">
                 {error ? (
                   <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] uppercase tracking-widest rounded border border-red-200 font-black flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" /> Connection Error
@@ -254,8 +253,8 @@ export default function App() {
                     <Database className="w-3 h-3" /> Google Sheet Ready
                   </span>
                 )}
-              </h1>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Live Downtime Monitoring & GMP Maintenance Intelligence</p>
+              </div>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mt-1">Live Downtime Monitoring & GMP Maintenance Intelligence</p>
             </div>
           </div>
 
@@ -966,7 +965,7 @@ export default function App() {
       {/* Footer */}
       <footer className="max-w-[1600px] mx-auto p-8 flex flex-col md:flex-row items-center justify-between border-t border-slate-200 mt-12 text-slate-400">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="INDUPHARMA" className="h-8 w-auto" />
+          <img src="/logo.png" alt="INDUPHARMA" className="h-12 w-auto" />
           <span className="text-xs font-black uppercase tracking-widest">© 2026 INDUPHARMA Industrial System</span>
         </div>
         <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest mt-6 md:mt-0">
