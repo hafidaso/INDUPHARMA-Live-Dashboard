@@ -685,8 +685,6 @@ export default function App() {
       // 2. Send via Email
       try {
         const pdfBase64 = doc.output('datauristring');
-        
-        // Show a brief loading indicator or just let it happen in background
         console.log("Envoi du rapport par email en cours...");
         
         const response = await fetch('/api/send-report', {
@@ -700,17 +698,24 @@ export default function App() {
           }),
         });
 
-        const result = await response.json();
+        const textResult = await response.text();
+        let result;
+        try {
+          result = JSON.parse(textResult);
+        } catch (e) {
+          console.error("Server returned non-JSON:", textResult);
+          throw new Error("Invalid server response. Make sure you are testing on Vercel, not on local Vite dev server.");
+        }
         
         if (response.ok) {
           alert('Le rapport a été téléchargé et envoyé avec succès par email !');
         } else {
-          console.error("Erreur d'envoi email:", result.error);
-          alert("Le rapport a été téléchargé, mais l'envoi par email a échoué.");
+          console.error("Erreur d'envoi email:", result.error || result);
+          alert(`L'envoi par email a échoué: ${result.error || 'Erreur serveur'}`);
         }
-      } catch (err) {
-        console.error("Erreur d'envoi email:", err);
-        alert("Le rapport a été téléchargé, mais une erreur de connexion a empêché l'envoi par email.");
+      } catch (err: any) {
+        console.error("Erreur de connexion email:", err);
+        alert(`Erreur de connexion: ${err.message}`);
       }
     };
 
