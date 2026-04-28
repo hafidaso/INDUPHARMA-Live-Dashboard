@@ -1791,6 +1791,7 @@ export default function App() {
                     </div>
                  </Card>
                ))}
+               </div>
             </motion.div>
           )}
 
