@@ -297,18 +297,33 @@ export async function fetchSheetData() {
 
     const incidents: Incident[] = payload.equipements
       .filter((e) => e.nb_alertes_ouvertes > 0)
-      .map((e) => ({
-        id: `INC-${e.equipement_id}`,
-        machine_id: e.equipement_id,
-        machine_name: e.nom,
-        detected_at: payload.meta.generated_at,
-        severity: toIncidentSeverity(e.criticite_gmp),
-        description: `${e.nb_alertes_ouvertes} open alert(s) on ${e.nom}`,
-        status: 'open',
-        created_by: 'auto',
-      }));
+      .map((e) => {
+        const techAction = (e.techniciens ?? []).find(t => t.status === 'done' || t.completed_at);
+        return {
+          id: `INC-${e.equipement_id}`,
+          machine_id: e.equipement_id,
+          machine_name: e.nom,
+          detected_at: payload.meta.generated_at,
+          resolved_at: techAction?.completed_at || undefined,
+          severity: toIncidentSeverity(e.criticite_gmp),
+          description: `${e.nb_alertes_ouvertes} open alert(s) on ${e.nom}`,
+          status: (techAction?.status === 'done' ? 'closed' : 'open') as IncidentStatus,
+          created_by: 'auto',
+        };
+      });
 
-    const maintenanceActions: MaintenanceAction[] = [];
+    const maintenanceActions: MaintenanceAction[] = payload.equipements.flatMap((e) => 
+      (e.techniciens ?? []).filter(t => t.action_taken || t.status === 'done' || t.status === 'in_progress').map((t, idx) => ({
+        id: `ACT-${e.equipement_id}-${idx}`,
+        incident_id: `INC-${e.equipement_id}`,
+        technician_id: t.email || t.name || 'unknown',
+        technician_name: t.name,
+        action_taken: t.action_taken || 'Intervention technique',
+        started_at: t.started_at || payload.meta.generated_at,
+        completed_at: t.completed_at || undefined,
+        notes: t.action_taken
+      }))
+    );
     const thresholds: Threshold[] = [];
 
     const kpiLogs: KpiLog[] = payload.equipements.map((e) => ({
