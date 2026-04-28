@@ -525,7 +525,7 @@ export default function App() {
             >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card title="Downtime Trends (Derniers 7 Jours)" icon={Activity}>
-                  <div className="h-[350px]">
+                  <div className="h-[350px] w-full min-w-0 min-h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={data.kpiLogs}>
                         <defs>
@@ -545,7 +545,7 @@ export default function App() {
                 </Card>
 
                 <Card title="MTTR par Équipement" icon={Clock}>
-                  <div className="h-[350px]">
+                  <div className="h-[350px] w-full min-w-0 min-h-[350px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={data.kpiLogs}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -674,7 +674,7 @@ export default function App() {
             <motion.div key="sensors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                  <Card title="Pression: Autoclave M02" icon={Activity}>
-                    <div className="h-[300px]">
+                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data.histories['M01']}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -690,7 +690,7 @@ export default function App() {
                  </Card>
 
                  <Card title="Vibration: Compresseuse C01" icon={Zap}>
-                    <div className="h-[300px]">
+                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data.histories['M02']}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -704,7 +704,7 @@ export default function App() {
                  </Card>
 
                  <Card title="Infrarouge: Mélangeur B03" icon={Thermometer}>
-                    <div className="h-[300px]">
+                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data.histories['M03']}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -718,7 +718,7 @@ export default function App() {
                  </Card>
 
                  <Card title="Température: Chambre Froide S05 & Remplisseuse R04" icon={Thermometer}>
-                    <div className="h-[300px]">
+                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

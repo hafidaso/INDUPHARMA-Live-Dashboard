@@ -26,19 +26,17 @@ import {
 const SHEET_BASE =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vRL-A-qoJjc6Rca7L5_tCsG3bh0-_X1OSSIIedmrXp5s7O67MSSJkX7xX6IVVQ1DjmxPaxumrobk1Yb/pub";
 
-const SHEET_DOC_ID = "1qWn0p9lrOjz_zssADNY6N0HtJbkFMCHTmE-PKjMRk4k";
-const buildSheetCsvUrl = (docId: string, gid: string) =>
-  `https://docs.google.com/spreadsheets/d/${docId}/gviz/tq?tqx=out:csv&gid=${gid}`;
-
 export const SHEET_CONFIG = {
   urls: {
-    machines:           `${SHEET_BASE}?output=csv`,           // first sheet tab (live)
-    technicians:        buildSheetCsvUrl(SHEET_DOC_ID, "1981152723"),
-    thresholds:         buildSheetCsvUrl(SHEET_DOC_ID, "945982141"),
-    sensorReadings:     buildSheetCsvUrl(SHEET_DOC_ID, "1876456620"),
-    incidents:          buildSheetCsvUrl(SHEET_DOC_ID, "2117617908"),
-    maintenanceActions: buildSheetCsvUrl(SHEET_DOC_ID, "597643256"),
-    kpiLogs:            buildSheetCsvUrl(SHEET_DOC_ID, "1582554922"),
+    machines:           `${SHEET_BASE}?gid=1981152723&single=true&output=csv`,
+    technicians:        `${SHEET_BASE}?gid=2117617908&single=true&output=csv`,
+    thresholds:         `${SHEET_BASE}?gid=945982141&single=true&output=csv`,
+    sensorReadings:     `${SHEET_BASE}?gid=1876456620&single=true&output=csv`,
+    incidents:          `${SHEET_BASE}?gid=597643256&single=true&output=csv`,
+    maintenanceActions: `${SHEET_BASE}?gid=1582554922&single=true&output=csv`,
+    kpiLogs:            `${SHEET_BASE}?gid=1784914877&single=true&output=csv`,
+    machineView:        `${SHEET_BASE}?gid=1548780963&single=true&output=csv`,
+    kpiSummary:         `${SHEET_BASE}?gid=67576934&single=true&output=csv`,
   },
   // Poll every 3 seconds for near-real-time dashboard updates.
   refreshIntervalMs: 3000,
@@ -52,10 +50,21 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
   // Cache buster so each poll reads the latest published CSV.
   const separator = url.includes('?') ? '&' : '?';
   const freshUrl = `${url}${separator}_ts=${Date.now()}`;
+  const seenHeaders = new Map<string, number>();
+
+  const makeUniqueHeader = (rawHeader: string, index: number) => {
+    const cleaned = rawHeader.replace(/^\uFEFF/, '').trim();
+    const base = cleaned || `column_${index}`;
+    const count = seenHeaders.get(base) ?? 0;
+    seenHeaders.set(base, count + 1);
+    return count === 0 ? base : `${base}_${count}`;
+  };
+
   return new Promise((resolve, reject) => {
     Papa.parse<T>(freshUrl, {
       download: true,
       header: true,
+      transformHeader: makeUniqueHeader,
       skipEmptyLines: true,
       dynamicTyping: true,
       complete: (results) => resolve(results.data),
@@ -233,7 +242,7 @@ export async function fetchKpiLogs(): Promise<KpiLog[]> {
 // ---------------------------------------------------------------------------
 export async function fetchSheetData() {
   try {
-    const [machines, technicians, thresholds, sensorReadings, incidents, maintenanceActions, kpiLogs] =
+    const [machines, technicians, thresholds, sensorReadings, incidents, maintenanceActions, kpiLogs, machineViewRows, kpiSummaryRows] =
       await Promise.all([
         fetchMachines(),
         fetchTechnicians(),
@@ -242,6 +251,8 @@ export async function fetchSheetData() {
         fetchIncidents(),
         fetchMaintenanceActions(),
         fetchKpiLogs(),
+        fetchCSV<DashboardMachineView>(SHEET_CONFIG.urls.machineView),
+        fetchCSV<DashboardKpiSummary>(SHEET_CONFIG.urls.kpiSummary),
       ]);
 
     // Join machine_name onto incidents and kpiLogs
@@ -255,8 +266,12 @@ export async function fetchSheetData() {
       machine_name: k.machine_name ?? machines.find((m) => m.id === k.machine_id)?.name ?? k.machine_id,
     }));
 
-    const machineView  = buildMachineView(machines, sensorReadings, incidentsWithNames);
-    const kpiSummary   = buildKpiSummary(machines, incidentsWithNames, kpiLogsWithNames);
+    const machineView = machineViewRows && machineViewRows.length > 0
+      ? machineViewRows
+      : buildMachineView(machines, sensorReadings, incidentsWithNames);
+    const kpiSummary = kpiSummaryRows && kpiSummaryRows.length > 0
+      ? kpiSummaryRows
+      : buildKpiSummary(machines, incidentsWithNames, kpiLogsWithNames);
 
     // Build sensor histories keyed by machine ID
     const histories: Record<string, any[]> = {};
