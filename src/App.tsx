@@ -575,6 +575,34 @@ export default function App() {
     });
   }, [data, incidentProgress]);
 
+  const sensorCards = useMemo(() => {
+    if (!data?.machines || !data?.histories) return [];
+    return data.machines
+      .map((m: Machine, index: number) => {
+        const history = data.histories[m.id] ?? [];
+        const latest = history.length > 0 ? history[history.length - 1] : null;
+        const reading = (data.sensorReadings ?? []).find((r: SensorReading) => r.machine_id === m.id);
+        let unit = latest?.unit ?? '';
+        if (!unit) {
+          if (reading?.pressure != null) unit = 'bar';
+          else if (reading?.temperature != null) unit = '°C';
+          else if (reading?.vibration != null) unit = 'g';
+          else if (reading?.infrared != null) unit = '°C';
+        }
+        return {
+          id: m.id,
+          name: m.name,
+          history,
+          latestValue: latest?.value != null ? Number(latest.value).toFixed(2) : 'N/A',
+          latestTime: latest?.timestamp ? new Date(latest.timestamp).toLocaleTimeString() : '--:--:--',
+          unit,
+          chartType: index % 2 === 0 ? 'line' : 'area',
+          color: ['#2563eb', '#f59e0b', '#ef4444', '#10b981'][index % 4],
+        };
+      })
+      .filter((c: any) => Array.isArray(c.history) && c.history.length > 0);
+  }, [data]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const user = DEMO_USERS.find((u) => u.email === email.trim() && u.password === password);
@@ -1244,58 +1272,48 @@ export default function App() {
           {activeTab === 'Capteurs' && (
             <motion.div key="sensors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 <Card title="Pression: Autoclave M02" icon={Activity}>
-                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
-                        <LineChart data={data.histories['M01']}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
-                          <YAxis fontSize={10} unit=" bar" />
-                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
-                          <ReferenceLine y={2.5} label="Max" stroke="#f59e0b" strokeDasharray="3 3" />
-                          <ReferenceLine y={3.0} label="Critique" stroke="#dc2626" strokeDasharray="3 3" />
-                          <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb' }} />
-                        </LineChart>
-                    </SafeChartContainer>
-                 </Card>
-
-                 <Card title="Vibration: Compresseuse C01" icon={Zap}>
-                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
-                        <AreaChart data={data.histories['M02']}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
-                          <YAxis fontSize={10} unit=" mm/s" />
-                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
-                          <Area type="monotone" dataKey="value" stroke="#f59e0b" fill="#fef3c7" strokeWidth={3} />
-                        </AreaChart>
-                    </SafeChartContainer>
-                 </Card>
-
-                 <Card title="Infrarouge: Mélangeur B03" icon={Thermometer}>
-                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
-                        <LineChart data={data.histories['M03']}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
-                          <YAxis fontSize={10} unit=" °C" />
-                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
-                          <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
-                        </LineChart>
-                    </SafeChartContainer>
-                 </Card>
-
-                 <Card title="Température: Chambre Froide S05 & Remplisseuse R04" icon={Thermometer}>
-                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
-                        <LineChart>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} allowDuplicatedCategory={false} />
-                          <YAxis fontSize={10} unit=" °C" />
-                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
-                          <ReferenceLine y={2.0} stroke="#dc2626" strokeDasharray="2 2" />
-                          <ReferenceLine y={1.5} label="Critique" stroke="#dc2626" strokeWidth={2} />
-                          <Line data={data.histories['M05']} type="monotone" dataKey="value" name="Chambre Froide S05" stroke="#3b82f6" strokeWidth={3} dot={false} />
-                          <Line data={data.histories['M04']} type="monotone" dataKey="value" name="Remplisseuse R04" stroke="#10b981" strokeWidth={3} dot={false} />
-                        </LineChart>
-                    </SafeChartContainer>
-                 </Card>
+                {sensorCards.length === 0 ? (
+                  <Card title="Capteurs" icon={Thermometer} className="lg:col-span-2">
+                    <div className="text-center py-10 text-slate-400">
+                      <Thermometer className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm font-bold">Aucune valeur capteur disponible</p>
+                      <p className="text-xs mt-1">Verifier le webhook et les mesures_recentes envoyees.</p>
+                    </div>
+                  </Card>
+                ) : (
+                  sensorCards.map((card: any) => (
+                    <Card key={card.id} title={`${card.name} — Valeur actuelle: ${card.latestValue} ${card.unit}`.trim()} icon={card.chartType === 'area' ? Zap : Activity}>
+                      <div className="mb-3 text-[11px] text-slate-500 font-bold">
+                        Derniere mesure: <span className="text-slate-700">{card.latestTime}</span>
+                      </div>
+                      <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
+                        {card.chartType === 'area' ? (
+                          <AreaChart data={card.history}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                            <YAxis fontSize={10} unit={card.unit ? ` ${card.unit}` : ''} />
+                            <Tooltip
+                              labelFormatter={(val) => new Date(val as any).toLocaleString()}
+                              formatter={(value: any) => [`${Number(value).toFixed(2)} ${card.unit}`.trim(), 'Valeur']}
+                            />
+                            <Area type="monotone" dataKey="value" stroke={card.color} fill={card.color} fillOpacity={0.16} strokeWidth={3} />
+                          </AreaChart>
+                        ) : (
+                          <LineChart data={card.history}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                            <YAxis fontSize={10} unit={card.unit ? ` ${card.unit}` : ''} />
+                            <Tooltip
+                              labelFormatter={(val) => new Date(val as any).toLocaleString()}
+                              formatter={(value: any) => [`${Number(value).toFixed(2)} ${card.unit}`.trim(), 'Valeur']}
+                            />
+                            <Line type="monotone" dataKey="value" stroke={card.color} strokeWidth={3} dot={{ r: 3, fill: card.color }} />
+                          </LineChart>
+                        )}
+                      </SafeChartContainer>
+                    </Card>
+                  ))
+                )}
               </div>
             </motion.div>
           )}
