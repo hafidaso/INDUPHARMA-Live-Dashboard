@@ -302,6 +302,14 @@ export async function fetchSheetData() {
       machine_name: k.machine_name ?? machines.find((m) => m.id === k.machine_id)?.name ?? k.machine_id,
     }));
 
+    const maintenanceActionsWithNames = maintenanceActions.map((action) => ({
+      ...action,
+      technician_name:
+        action.technician_name ??
+        technicians.find((t) => t.id === action.technician_id)?.name ??
+        action.technician_id,
+    }));
+
     const machineView = hasExpectedColumns(machineViewRows as any[], ['machine_id', 'machine_name', 'type', 'location', 'machine_status'])
       ? machineViewRows
       : buildMachineView(machines, sensorReadings, incidentsWithNames);
@@ -328,7 +336,7 @@ export async function fetchSheetData() {
       thresholds,
       sensorReadings,
       incidents: incidentsWithNames,
-      maintenanceActions,
+      maintenanceActions: maintenanceActionsWithNames,
       kpiLogs: kpiLogsWithNames,
       machineView,
       kpiSummary,
