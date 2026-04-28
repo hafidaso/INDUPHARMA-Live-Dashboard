@@ -257,6 +257,8 @@ export default function App() {
     technician: string;
     updated_at: string;
   }>>({});
+  const [activeCriticalAlert, setActiveCriticalAlert] = useState<Incident | null>(null);
+  const [notifiedIncidentIds, setNotifiedIncidentIds] = useState<Set<string>>(new Set());
 
   const handleRefresh = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -542,6 +544,30 @@ export default function App() {
   }, [INCIDENT_PROGRESS_STORAGE_KEY]);
 
   useEffect(() => {
+    if (!data?.incidents) return;
+    
+    // Find a new critical incident that hasn't been notified yet
+    const newCritical = data.incidents.find((inc: Incident) => 
+      inc.severity === 'critical' && 
+      !notifiedIncidentIds.has(inc.id) &&
+      inc.status === 'open'
+    );
+
+    if (newCritical) {
+      setActiveCriticalAlert(newCritical);
+      setNotifiedIncidentIds(prev => new Set(prev).add(newCritical.id));
+      
+      // Play a sharp alarm sound
+      try {
+        const audio = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a7351b.mp3');
+        audio.play().catch(() => console.log('Audio playback blocked - waiting for user interaction'));
+      } catch (e) {
+        console.error('Audio alert failed', e);
+      }
+    }
+  }, [data?.incidents, notifiedIncidentIds]);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(INCIDENT_PROGRESS_STORAGE_KEY, JSON.stringify(incidentProgress));
     } catch {
@@ -781,6 +807,42 @@ export default function App() {
     </div>
   ) : null;
 
+  const criticalAlertPopup = activeCriticalAlert ? (
+    <div className="fixed inset-0 z-[150] bg-red-950/80 backdrop-blur-md flex items-center justify-center px-4">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-lg bg-white border-4 border-red-600 rounded-3xl shadow-[0_0_50px_rgba(220,38,38,0.5)] p-8 text-center"
+      >
+        <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+          <ShieldAlert className="w-10 h-10" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2">ALERTE CRITIQUE</h2>
+        <div className="bg-red-50 text-red-700 py-2 px-4 rounded-full inline-block text-xs font-black mb-6 border border-red-100">
+          MAINTENANCE IMMÉDIATE REQUISE
+        </div>
+        
+        <div className="space-y-4 mb-8">
+          <div>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Équipement</p>
+            <p className="text-xl font-black text-slate-800">{activeCriticalAlert.machine_name}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Description</p>
+            <p className="text-sm text-slate-600 font-medium">{activeCriticalAlert.description}</p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setActiveCriticalAlert(null)}
+          className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-red-200 transition-all active:scale-95"
+        >
+          ACQUITTER ET SILENCIEUX
+        </button>
+      </motion.div>
+    </div>
+  ) : null;
+
   if (!authUser) return (
     <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center px-6">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
@@ -857,6 +919,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#F7F4EE] text-slate-800">
         {webhookAlertPopup}
+        {criticalAlertPopup}
         <header className="bg-white border-b border-slate-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -943,6 +1006,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F7F4EE] text-slate-800 font-sans selection:bg-blue-600/10">
       {webhookAlertPopup}
+      {criticalAlertPopup}
       
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-4">
