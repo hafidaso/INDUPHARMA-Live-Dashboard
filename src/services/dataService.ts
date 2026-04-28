@@ -90,6 +90,13 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
   });
 }
 
+function hasExpectedColumns(rows: any[] | null, requiredColumns: string[]): boolean {
+  if (!rows || rows.length === 0) return false;
+  const sample = rows[0];
+  if (!sample || typeof sample !== 'object') return false;
+  return requiredColumns.every((col) => Object.prototype.hasOwnProperty.call(sample, col));
+}
+
 // ---------------------------------------------------------------------------
 // MOCK DATA  (used as fallback when a sheet URL is not yet configured)
 // ---------------------------------------------------------------------------
@@ -209,13 +216,15 @@ const generateHistory = (machineId: string, count: number, base: number, varianc
 // ---------------------------------------------------------------------------
 export async function fetchMachines(): Promise<Machine[]> {
   const rows = await fetchCSV<any>(SHEET_CONFIG.urls.machines);
-  if (rows && rows.length > 0) return rows as Machine[];
+  if (hasExpectedColumns(rows, ['id', 'name', 'type', 'location', 'status', 'created_at'])) {
+    return rows as Machine[];
+  }
   return machinesMock;
 }
 
 export async function fetchTechnicians(): Promise<Technician[]> {
   const rows = await fetchCSV<any>(SHEET_CONFIG.urls.technicians);
-  if (rows && rows.length > 0) {
+  if (hasExpectedColumns(rows, ['id', 'name', 'role', 'email', 'phone', 'is_available'])) {
     return rows.map((r: any) => ({
       ...r,
       is_available: r.is_available === true || r.is_available === 'true' || r.is_available === 1,
@@ -226,31 +235,41 @@ export async function fetchTechnicians(): Promise<Technician[]> {
 
 export async function fetchThresholds(): Promise<Threshold[]> {
   const rows = await fetchCSV<any>(SHEET_CONFIG.urls.thresholds);
-  if (rows && rows.length > 0) return rows as Threshold[];
+  if (hasExpectedColumns(rows, ['id', 'machine_id', 'sensor_type', 'min_value', 'max_value', 'critical_value', 'unit'])) {
+    return rows as Threshold[];
+  }
   return thresholdsMock;
 }
 
 export async function fetchSensorReadings(): Promise<SensorReading[]> {
   const rows = await fetchCSV<any>(SHEET_CONFIG.urls.sensorReadings);
-  if (rows && rows.length > 0) return rows as SensorReading[];
+  if (hasExpectedColumns(rows, ['id', 'machine_id', 'device_id', 'status', 'severity', 'timestamp'])) {
+    return rows as SensorReading[];
+  }
   return sensorReadingsMock;
 }
 
 export async function fetchIncidents(): Promise<Incident[]> {
   const rows = await fetchCSV<any>(SHEET_CONFIG.urls.incidents);
-  if (rows && rows.length > 0) return rows as Incident[];
+  if (hasExpectedColumns(rows, ['id', 'machine_id', 'detected_at', 'severity', 'description', 'status', 'created_by'])) {
+    return rows as Incident[];
+  }
   return incidentsMock;
 }
 
 export async function fetchMaintenanceActions(): Promise<MaintenanceAction[]> {
   const rows = await fetchCSV<any>(SHEET_CONFIG.urls.maintenanceActions);
-  if (rows && rows.length > 0) return rows as MaintenanceAction[];
+  if (hasExpectedColumns(rows, ['id', 'incident_id', 'technician_id', 'action_taken', 'started_at'])) {
+    return rows as MaintenanceAction[];
+  }
   return maintenanceActionsMock;
 }
 
 export async function fetchKpiLogs(): Promise<KpiLog[]> {
   const rows = await fetchCSV<any>(SHEET_CONFIG.urls.kpiLogs);
-  if (rows && rows.length > 0) return rows as KpiLog[];
+  if (hasExpectedColumns(rows, ['id', 'machine_id', 'date', 'downtime_minutes', 'mtbf_hours', 'mttr_minutes', 'incident_count', 'escalation_count', 'closure_rate'])) {
+    return rows as KpiLog[];
+  }
   return kpiLogsMock;
 }
 
@@ -283,10 +302,10 @@ export async function fetchSheetData() {
       machine_name: k.machine_name ?? machines.find((m) => m.id === k.machine_id)?.name ?? k.machine_id,
     }));
 
-    const machineView = machineViewRows && machineViewRows.length > 0
+    const machineView = hasExpectedColumns(machineViewRows as any[], ['machine_id', 'machine_name', 'type', 'location', 'machine_status'])
       ? machineViewRows
       : buildMachineView(machines, sensorReadings, incidentsWithNames);
-    const kpiSummary = kpiSummaryRows && kpiSummaryRows.length > 0
+    const kpiSummary = hasExpectedColumns(kpiSummaryRows as any[], ['metric', 'value', 'unit', 'status', 'note'])
       ? kpiSummaryRows
       : buildKpiSummary(machines, incidentsWithNames, kpiLogsWithNames);
 
