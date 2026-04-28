@@ -263,7 +263,17 @@ export default function App() {
   const [notifiedIncidentIds, setNotifiedIncidentIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'en_panne' | 'maintenance'>('all');
+  const [zoneFilter, setZoneFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<TabType>('Vue Globale');
   const [maintenanceHistory, setMaintenanceHistory] = useState<MaintenanceAction[]>([]);
+  const [kpiHistory, setKpiHistory] = useState<any[]>(() => {
+    const saved = localStorage.getItem('indupharma_kpi_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('indupharma_kpi_history', JSON.stringify(kpiHistory.slice(-100)));
+  }, [kpiHistory]);
 
   const selectedMachine = useMemo(() => {
     if (!data || !selectedMachineId) return null;
@@ -441,6 +451,15 @@ export default function App() {
     });
   }, [data?.machineView, incidentsWithWorkflow]);
 
+  const allZones = useMemo(() => {
+    if (!data?.machines) return [];
+    const zones = new Set<string>();
+    data.machines.forEach(m => {
+      if (m.location) zones.add(m.location);
+    });
+    return Array.from(zones).sort();
+  }, [data]);
+
   const filteredMachineView = useMemo(() => {
     let result = [...machineViewWithWorkflow];
     
@@ -457,6 +476,10 @@ export default function App() {
     if (statusFilter !== 'all') {
       result = result.filter(m => m.machine_status === statusFilter);
     }
+
+    if (zoneFilter !== 'all') {
+      result = result.filter(m => m.location === zoneFilter);
+    }
     
     result.sort((a, b) => {
       const score = (s: string) => s === 'en_panne' ? 3 : s === 'maintenance' ? 2 : s === 'active' ? 1 : 0;
@@ -464,7 +487,7 @@ export default function App() {
     });
     
     return result;
-  }, [machineViewWithWorkflow, searchQuery, statusFilter]);
+  }, [machineViewWithWorkflow, searchQuery, statusFilter, zoneFilter]);
 
   const filteredMachines = useMemo(() => {
     if (!data?.machines) return [];
@@ -480,6 +503,10 @@ export default function App() {
     if (statusFilter !== 'all') {
       result = result.filter(m => m.status === statusFilter);
     }
+
+    if (zoneFilter !== 'all') {
+      result = result.filter(m => m.location === zoneFilter);
+    }
     
     result.sort((a, b) => {
       const score = (s: string) => s === 'en_panne' ? 3 : s === 'maintenance' ? 2 : s === 'active' ? 1 : 0;
@@ -487,7 +514,7 @@ export default function App() {
     });
     
     return result;
-  }, [data, searchQuery, statusFilter]);
+  }, [data, searchQuery, statusFilter, zoneFilter]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -512,6 +539,31 @@ export default function App() {
     try {
       const result = await fetchSheetData();
       setData(result);
+      
+      // Accumulate history point
+      if (result.machines && result.machines.length > 0) {
+        const activeCount = result.machines.filter(m => m.status === 'active').length;
+        const totalCount = result.machines.length;
+        const alertsCount = result.machines.filter(m => m.status === 'en_panne').length;
+        
+        const newPoint = {
+          id: Date.now(),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          nb_alertes: alertsCount,
+          disponibilite: Math.round((activeCount / totalCount) * 100),
+          performance: 95 - (alertsCount * 5), // dynamic proxy
+        };
+        
+        setKpiHistory(prev => {
+          // Only add if timestamp is different or value changed to avoid duplicate spam
+          const lastPoint = prev[prev.length - 1];
+          if (lastPoint && lastPoint.timestamp === newPoint.timestamp && lastPoint.nb_alertes === newPoint.nb_alertes) {
+            return prev;
+          }
+          return [...prev, newPoint].slice(-100);
+        });
+      }
+
       setError(null);
     } catch (err) {
       setError("Connection Error");
@@ -1251,6 +1303,25 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-6"
             >
+              {/* Zone Status Summary Bar */}
+              <div className="flex flex-wrap gap-3 mb-2">
+                {allZones.map(zone => {
+                  const machinesInZone = (data?.machines ?? []).filter(m => m.location === zone);
+                  const alertsInZone = machinesInZone.filter(m => m.status === 'en_panne' || m.status === 'maintenance').length;
+                  return (
+                    <div key={zone} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full shadow-sm text-[10px] font-black uppercase tracking-tight">
+                      <span className="text-slate-500">{zone}</span>
+                      <div className="flex items-center gap-1">
+                        <div className={cn("w-2 h-2 rounded-full", alertsInZone > 0 ? "bg-red-500 animate-pulse" : "bg-emerald-500")} />
+                        <span className={alertsInZone > 0 ? "text-red-600" : "text-emerald-600"}>
+                          {machinesInZone.length - alertsInZone}/{machinesInZone.length} OK
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
               {/* KPI Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 {dashboardKpiSummary.map((kpi: DashboardKpiSummary, idx: number) => (
@@ -1284,6 +1355,14 @@ export default function App() {
                             placeholder="Rechercher..." 
                           />
                        </div>
+                       <select 
+                         value={zoneFilter}
+                         onChange={(e) => setZoneFilter(e.target.value)}
+                         className="bg-white border border-slate-200 rounded-lg text-[10px] font-black uppercase px-2 py-1.5 outline-none shadow-sm cursor-pointer"
+                       >
+                          <option value="all">Toutes Zones</option>
+                          {allZones.map(z => <option key={z} value={z}>{z}</option>)}
+                       </select>
                        <select 
                          value={statusFilter}
                          onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -1512,32 +1591,36 @@ export default function App() {
               className="space-y-6"
             >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card title="Downtime Trends (Derniers 7 Jours)" icon={Activity}>
+                <Card title="Factory Health Trend (Real-Time History)" icon={Activity}>
                   <SafeChartContainer className="h-[350px] w-full min-w-0 min-h-[350px]">
-                      <AreaChart data={data.kpiLogs}>
+                      <AreaChart data={kpiHistory.length > 0 ? kpiHistory : [{timestamp: '--:--', disponibilite: 0, performance: 0}]}>
                         <defs>
-                          <linearGradient id="colorDown" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          <linearGradient id="colorHealth" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="machine_name" fontSize={10} fontVariant="bold" />
-                        <YAxis fontSize={10} tickFormatter={(val) => `${val}m`} />
+                        <XAxis dataKey="timestamp" fontSize={10} fontVariant="bold" />
+                        <YAxis fontSize={10} domain={[0, 100]} unit="%" />
                         <Tooltip />
-                        <Area type="monotone" dataKey="downtime_minutes" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDown)" strokeWidth={3} />
+                        <Area name="Disponibilité" type="monotone" dataKey="disponibilite" stroke="#10b981" fillOpacity={1} fill="url(#colorHealth)" strokeWidth={3} />
+                        <Area name="Performance Index" type="monotone" dataKey="performance" stroke="#3b82f6" fillOpacity={0} strokeWidth={2} strokeDasharray="5 5" />
                       </AreaChart>
                   </SafeChartContainer>
                 </Card>
 
-                <Card title="MTTR par Équipement" icon={Clock}>
+                <Card title="Alertes par Zone de Production" icon={Box}>
                   <SafeChartContainer className="h-[350px] w-full min-w-0 min-h-[350px]">
-                      <BarChart data={data.kpiLogs}>
+                      <BarChart data={allZones.map(zone => ({
+                        name: zone,
+                        count: (data?.machines ?? []).filter(m => m.location === zone && m.status === 'en_panne').length
+                      }))}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="machine_name" fontSize={10} />
-                        <YAxis fontSize={10} unit=" min" />
+                        <XAxis dataKey="name" fontSize={10} />
+                        <YAxis fontSize={10} allowDecimals={false} />
                         <Tooltip />
-                        <Bar dataKey="mttr_minutes" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={40} />
+                        <Bar name="Machines en Panne" dataKey="count" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={40} />
                       </BarChart>
                   </SafeChartContainer>
                 </Card>
@@ -1793,6 +1876,14 @@ export default function App() {
                         placeholder="Rechercher machine..." 
                       />
                     </div>
+                    <select 
+                       value={zoneFilter}
+                       onChange={(e) => setZoneFilter(e.target.value)}
+                       className="bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-black uppercase px-2 py-1.5 outline-none cursor-pointer"
+                    >
+                       <option value="all">Toutes Zones</option>
+                       {allZones.map(z => <option key={z} value={z}>{z}</option>)}
+                    </select>
                     <select 
                        value={statusFilter}
                        onChange={(e) => setStatusFilter(e.target.value as any)}
