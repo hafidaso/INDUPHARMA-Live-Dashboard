@@ -678,7 +678,41 @@ export default function App() {
       }
     };
 
-    const finalize = () => doc.save(`${reportId}.pdf`);
+    const finalize = async () => {
+      // 1. Download locally
+      doc.save(`${reportId}.pdf`);
+
+      // 2. Send via Email
+      try {
+        const pdfBase64 = doc.output('datauristring');
+        
+        // Show a brief loading indicator or just let it happen in background
+        console.log("Envoi du rapport par email en cours...");
+        
+        const response = await fetch('/api/send-report', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            reportId,
+            pdfBase64,
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert('Le rapport a été téléchargé et envoyé avec succès par email !');
+        } else {
+          console.error("Erreur d'envoi email:", result.error);
+          alert("Le rapport a été téléchargé, mais l'envoi par email a échoué.");
+        }
+      } catch (err) {
+        console.error("Erreur d'envoi email:", err);
+        alert("Le rapport a été téléchargé, mais une erreur de connexion a empêché l'envoi par email.");
+      }
+    };
 
     const drawReport = (logoDataUrl?: string) => {
       doc.setFillColor(...colors.bg);
