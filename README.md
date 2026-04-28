@@ -15,14 +15,18 @@ This is a professional-grade React + TypeScript dashboard specifically engineere
 - **Visual Threshold Gauges**: High-precision monitors comparing live data against **USP (US Pharmacopeia) & ISO 17665** standards for Autoclaves, Cold Storage, and Coating machines.
 - **Safety Zones**: Real-time visualization of Safe, Warning, and Critical zones for every sensor.
 
-### 🔍 Smart Inventory & Filtering
+### 🔍 Smart Inventory & Priority Sorting
+- **Intelligent Sorting**: A custom algorithm automatically promotes "En Panne" (Down) machines to the top of the list, ensuring that critical failures are seen first by management.
 - **Dynamic Search**: Instant filtering by machine name, code, or location.
-- **Priority Sorting**: Intelligent algorithm that automatically promotes "En Panne" (Down) machines to the top of the view for immediate management visibility.
 - **Status Filtering**: One-click isolation of machines in Maintenance, Active, or Failed states.
 
 ### 📜 Persistent Maintenance Audit Log
 - **Action History Persistence**: Integrated `LocalStorage` layer that preserves the history of technician interventions even after API data is cleared or the browser is refreshed.
 - **Non-Volatile Logs**: Retains up to 100 historical records for audit compliance and performance reviews.
+
+### 📄 Professional PDF Reporting
+- **Branded Exports**: Generate comprehensive PDF reports with one click, including company branding and unique report IDs.
+- **Performance Snapshots**: Automatically summarizes equipment status, active incidents, and AI recommendations into an exportable format for daily briefings.
 
 ### 🚨 Critical Alert System
 - **Dual-Layer Alarms**: Instant full-screen red modals combined with audible alarms for `GMP_critique` violations.
@@ -34,6 +38,13 @@ This is a professional-grade React + TypeScript dashboard specifically engineere
 
 ---
 
+## 📱 Industrial Responsive Design
+- **Tablet Optimized**: Specially designed for industrial tablets used by floor technicians.
+- **Mobile First**: Full functionality preserved on mobile devices for managers on the move.
+- **Glassmorphism UI**: High-contrast, premium interface designed for readability in industrial lighting conditions.
+
+---
+
 ## 🛠️ Technical Architecture
 
 - **Frontend**: React 19 (Hooks, Context, Memoization)
@@ -41,6 +52,7 @@ This is a professional-grade React + TypeScript dashboard specifically engineere
 - **Styling**: Tailwind CSS v4 (Modern industrial aesthetics)
 - **Animations**: Framer Motion (Smooth state transitions and gauges)
 - **Charts**: Recharts (High-performance telemetry visualization)
+- **PDF Engine**: jsPDF / html2canvas integration for high-fidelity report generation.
 - **Data Pipeline**: Custom normalization engine in `src/services/dataService.ts` to ensure 100% data integrity.
 
 ---
