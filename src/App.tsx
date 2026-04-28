@@ -82,6 +82,32 @@ import {
   IncidentStatus
 } from './types';
 
+type ActionProgressStatus = 'done' | 'in_progress' | 'blocked' | 'not_yet';
+
+type DemoUser = {
+  email: string;
+  password: string;
+  role: 'admin' | 'technician';
+  name: string;
+};
+
+const DEMO_USERS: DemoUser[] = [
+  { email: 'admin@indupharma.local', password: 'admin123', role: 'admin', name: 'Dashboard Admin' },
+  { email: 'tech@indupharma.local', password: 'tech123', role: 'technician', name: 'Technician Account' },
+];
+
+const ACTION_STATUS_LABEL: Record<ActionProgressStatus, string> = {
+  done: 'Done',
+  in_progress: 'In Progress',
+  blocked: 'Blocked',
+  not_yet: 'Not Yet',
+};
+
+const ACTION_TO_INCIDENT: Partial<Record<ActionProgressStatus, IncidentStatus>> = {
+  done: 'closed',
+  in_progress: 'in_progress',
+};
+
 // Utility for tailwind classes
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -215,11 +241,20 @@ const KPICard = ({ metric, value, unit, status, note, icon: Icon }: KPICardProps
 // --- Main App ---
 
 export default function App() {
+  const [authUser, setAuthUser] = useState<DemoUser | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Vue Globale');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+  const [incidentProgress, setIncidentProgress] = useState<Record<string, {
+    status: ActionProgressStatus;
+    technician: string;
+    updated_at: string;
+  }>>({});
 
   const handleRefresh = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -385,6 +420,103 @@ export default function App() {
     });
   }, [data]);
 
+  const updateIncidentProgress = (incidentId: string, status: ActionProgressStatus, technician: string) => {
+    setIncidentProgress((prev) => ({
+      ...prev,
+      [incidentId]: {
+        status,
+        technician,
+        updated_at: new Date().toLocaleString('fr-FR'),
+      },
+    }));
+  };
+
+  const effectiveIncidents: Incident[] = useMemo(() => {
+    if (!data?.incidents) return [];
+    return data.incidents.map((incident: Incident) => {
+      const progress = incidentProgress[incident.id];
+      const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
+      return { ...incident, status: mappedStatus ?? incident.status };
+    });
+  }, [data, incidentProgress]);
+
+  const technicianAlerts = useMemo(() => {
+    if (!data?.incidents) return [];
+    return data.incidents.map((incident: Incident) => {
+      const progress = incidentProgress[incident.id];
+      return {
+        ...incident,
+        actionStatus: progress?.status ?? ('not_yet' as ActionProgressStatus),
+        assignedTechnician: progress?.technician ?? 'Unassigned',
+        updatedAt: progress?.updated_at ?? '-',
+      };
+    });
+  }, [data, incidentProgress]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = DEMO_USERS.find((u) => u.email === email.trim() && u.password === password);
+    if (!user) {
+      setLoginError('Identifiants invalides.');
+      return;
+    }
+    setAuthUser(user);
+    setLoginError(null);
+  };
+
+  const handleLogout = () => {
+    setAuthUser(null);
+    setEmail('');
+    setPassword('');
+    setLoginError(null);
+  };
+
+  if (!authUser) return (
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center px-6">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div className="text-center mb-6">
+          <img src="/logo.png" alt="INDUPHARMA" className="h-14 w-auto mx-auto mb-3" />
+          <h1 className="text-slate-900 text-xl font-black">INDUPHARMA Access</h1>
+          <p className="text-slate-500 text-sm mt-1">Login as Admin or Technician</p>
+        </div>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-xs font-black text-slate-500 uppercase mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="admin@indupharma.local"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-black text-slate-500 uppercase mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+              placeholder="••••••••"
+            />
+          </div>
+          {loginError && <p className="text-xs text-red-600 font-bold">{loginError}</p>}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-black"
+          >
+            Login
+          </button>
+        </form>
+        <div className="mt-5 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          <p className="font-black text-slate-700 mb-1">Demo accounts:</p>
+          <p>Admin: admin@indupharma.local / admin123</p>
+          <p>Technician: tech@indupharma.local / tech123</p>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading && !data) return (
     <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center">
       <RefreshCcw className="w-8 h-8 text-blue-600 animate-spin" />
@@ -410,6 +542,93 @@ export default function App() {
     </div>
   );
 
+  if (authUser.role === 'technician') {
+    const openAlertCount = technicianAlerts.filter((a: any) => a.actionStatus !== 'done').length;
+    return (
+      <div className="min-h-screen bg-[#F7F4EE] text-slate-800">
+        <header className="bg-white border-b border-slate-200 px-6 py-4">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="INDUPHARMA" className="h-12 w-auto" />
+              <div>
+                <h1 className="text-lg font-black">Technician Dashboard</h1>
+                <p className="text-xs text-slate-500">Connected as {authUser.name}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleRefresh()}
+                className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-black"
+              >
+                Refresh
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-3 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-xs font-black"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-6xl mx-auto p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <p className="text-[10px] uppercase font-black text-slate-400">Total Alerts</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{technicianAlerts.length}</p>
+            </Card>
+            <Card>
+              <p className="text-[10px] uppercase font-black text-slate-400">Open / Processing</p>
+              <p className="text-2xl font-black text-amber-600 mt-1">{openAlertCount}</p>
+            </Card>
+            <Card>
+              <p className="text-[10px] uppercase font-black text-slate-400">Last Update</p>
+              <p className="text-sm font-black text-slate-900 mt-1">{data.lastUpdate}</p>
+            </Card>
+          </div>
+
+          <Card title="Technician Alerts Queue" icon={AlertTriangle}>
+            <div className="space-y-4">
+              {technicianAlerts.map((alert: any) => (
+                <div key={alert.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-sm font-black text-slate-900">{alert.machine_name}</p>
+                      <p className="text-xs text-slate-500">{alert.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge status={alert.severity}>{alert.severity}</Badge>
+                      <Badge status={alert.actionStatus}>{ACTION_STATUS_LABEL[alert.actionStatus]}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(['done', 'in_progress', 'blocked', 'not_yet'] as ActionProgressStatus[]).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => updateIncidentProgress(alert.id, s, authUser.name)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg border text-xs font-black uppercase',
+                          alert.actionStatus === s
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        )}
+                      >
+                        {ACTION_STATUS_LABEL[s]}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-3">
+                    Technician: {alert.assignedTechnician} | Updated: {alert.updatedAt}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F7F4EE] text-slate-800 font-sans selection:bg-blue-600/10">
       
@@ -426,11 +645,11 @@ export default function App() {
                   </span>
                 ) : data?.isConnected ? (
                   <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[10px] uppercase tracking-widest rounded border border-emerald-200 font-black flex items-center gap-1">
-                    <Database className="w-3 h-3" /> Connected to Google Sheet
+                    <Database className="w-3 h-3" /> Connected to Webhook
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] uppercase tracking-widest rounded border border-blue-100 font-black flex items-center gap-1">
-                    <Database className="w-3 h-3" /> Google Sheet Ready
+                    <Database className="w-3 h-3" /> Webhook Ready
                   </span>
                 )}
               </div>
@@ -455,6 +674,12 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleLogout}
+                className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-black"
+              >
+                Logout
+              </button>
               <button 
                 onClick={() => handleRefresh()}
                 className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-all active:scale-95"
@@ -660,8 +885,9 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {data.incidents.map((incident: Incident) => {
+                      {effectiveIncidents.map((incident: Incident) => {
                         const action = data.maintenanceActions.find((a: any) => a.incident_id === incident.id);
+                        const progress = incidentProgress[incident.id];
                         return (
                           <tr key={incident.id} className="hover:bg-slate-50 transition-colors group">
                             <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono">{incident.id}</td>
@@ -687,7 +913,11 @@ export default function App() {
                                   <User className="w-3 h-3 text-slate-400" />
                                   <span className="text-xs font-bold text-slate-700">{action.technician_name}</span>
                                 </div>
-                              ) : <span className="text-[10px] text-slate-300 italic">Non assigné</span>}
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">
+                                  {progress ? `${ACTION_STATUS_LABEL[progress.status]} by ${progress.technician}` : 'Non assigné'}
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -985,7 +1215,7 @@ export default function App() {
             <motion.div key="incidents-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <Card title="Incidents & Workflow Performance" icon={AlertTriangle}>
                     <div className="space-y-8">
-                       {data.incidents.map((incident: Incident) => (
+                       {effectiveIncidents.map((incident: Incident) => (
                          <div key={incident.id} className="p-6 border border-slate-100 rounded-2xl bg-slate-50/30">
                             <div className="flex items-center justify-between mb-6">
                                <div className="flex items-center gap-4">
