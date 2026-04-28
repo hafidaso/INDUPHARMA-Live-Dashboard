@@ -180,7 +180,11 @@ async function fetchProductionStatus(): Promise<ProductionResponse> {
       throw new Error(`Production endpoint failed: ${res.status}`);
     }
     const raw = await res.json();
-    return normalizeProductionResponse(raw);
+    const normalized = normalizeProductionResponse(raw);
+    if (!Array.isArray(normalized.equipements) || normalized.equipements.length === 0) {
+      throw new Error('Production payload has no valid equipements array.');
+    }
+    return normalized;
   } finally {
     window.clearTimeout(timeout);
   }

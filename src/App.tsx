@@ -140,20 +140,33 @@ const SafeChartContainer: React.FC<{ className: string; children: React.ReactNod
     const element = hostRef.current;
     if (!element) return;
 
+    let rafId = 0;
     if (typeof ResizeObserver === 'undefined') {
-      setReady(true);
-      return;
+      const waitForLayout = () => {
+        const rect = element.getBoundingClientRect();
+        if (rect.width > 10 && rect.height > 10) {
+          setReady(true);
+          return;
+        }
+        rafId = window.requestAnimationFrame(waitForLayout);
+      };
+      waitForLayout();
+      return () => window.cancelAnimationFrame(rafId);
     }
 
     const checkSize = () => {
       const rect = element.getBoundingClientRect();
-      setReady(rect.width > 0 && rect.height > 0);
+      setReady(rect.width > 10 && rect.height > 10);
     };
 
-    checkSize();
+    // Delay first measurement one frame to avoid transient -1 values during animated mount.
+    rafId = window.requestAnimationFrame(checkSize);
     const observer = new ResizeObserver(checkSize);
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(rafId);
+    };
   }, []);
 
   return (
@@ -226,46 +239,107 @@ export default function App() {
     const activeMachines = (data.machines ?? []).filter((m: any) => m.status === 'active').length;
     const totalMachines = (data.machines ?? []).length;
 
-    const doc = new jsPDF();
-    let y = 20;
-    doc.setFontSize(18);
-    doc.text('INDUPHARMA - Rapport de Production', 14, y);
-    y += 10;
+    const availableTechs = (data.technicians ?? []).filter((t: any) => !!t.is_available).length;
+    const safeRows = (data.machines ?? []).slice(0, 18);
 
-    doc.setFontSize(11);
-    doc.text(`Rapport ID: ${reportId}`, 14, y);
-    y += 7;
-    doc.text(`Date: ${now.toLocaleString('fr-FR')}`, 14, y);
-    y += 7;
-    doc.text(`Derniere mise a jour dashboard: ${data.lastUpdate ?? 'N/A'}`, 14, y);
-    y += 12;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const drawCard = (x: number, y: number, w: number, h: number, title: string, value: string) => {
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(9);
+      doc.text(title, x + 3, y + 5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(13);
+      doc.text(value, x + 3, y + 11);
+    };
 
-    doc.setFontSize(13);
-    doc.text('Resume', 14, y);
-    y += 8;
-    doc.setFontSize(11);
-    doc.text(`- Machines actives: ${activeMachines}/${totalMachines}`, 14, y);
-    y += 7;
-    doc.text(`- Incidents ouverts: ${openIncidents}`, 14, y);
-    y += 7;
-    doc.text(`- Techniciens disponibles: ${(data.technicians ?? []).filter((t: any) => !!t.is_available).length}`, 14, y);
-    y += 10;
+    const finalize = () => doc.save(`${reportId}.pdf`);
 
-    doc.setFontSize(13);
-    doc.text('Equipements', 14, y);
-    y += 8;
-    doc.setFontSize(10);
-    (data.machines ?? []).slice(0, 15).forEach((m: any) => {
-      const line = `${m.name} | ${m.location} | status: ${m.status}`;
-      doc.text(line, 14, y);
-      y += 6;
-      if (y > 280) {
-        doc.addPage();
-        y = 20;
+    // Draw report body after optional logo load
+    const drawReport = (logoDataUrl?: string) => {
+      let y = 14;
+
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', 14, y - 2, 42, 16);
       }
-    });
 
-    doc.save(`${reportId}.pdf`);
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(18);
+      doc.text('Rapport de Production', pageWidth - 14, y + 4, { align: 'right' });
+      y += 11;
+
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.6);
+      doc.line(14, y, pageWidth - 14, y);
+      y += 6;
+
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Rapport ID: ${reportId}`, 14, y);
+      doc.text(`Date: ${now.toLocaleString('fr-FR')}`, pageWidth - 14, y, { align: 'right' });
+      y += 5;
+      doc.text(`Derniere mise a jour: ${data.lastUpdate ?? 'N/A'}`, 14, y);
+      y += 8;
+
+      const cardW = (pageWidth - 14 * 2 - 3 * 2) / 3;
+      drawCard(14, y, cardW, 14, 'Machines Actives', `${activeMachines}/${totalMachines}`);
+      drawCard(14 + cardW + 3, y, cardW, 14, 'Incidents Ouverts', String(openIncidents));
+      drawCard(14 + (cardW + 3) * 2, y, cardW, 14, 'Techniciens Disponibles', String(availableTechs));
+      y += 20;
+
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Equipements (snapshot)', 14, y);
+      y += 5;
+
+      // Table header
+      doc.setFillColor(241, 245, 249);
+      doc.rect(14, y, pageWidth - 28, 7, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      doc.text('Nom', 16, y + 4.6);
+      doc.text('Zone', 92, y + 4.6);
+      doc.text('Status', 154, y + 4.6);
+      y += 8;
+
+      doc.setTextColor(15, 23, 42);
+      safeRows.forEach((m: any, idx: number) => {
+        if (y > 282) {
+          doc.addPage();
+          y = 16;
+        }
+        if (idx % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(14, y - 3.8, pageWidth - 28, 6.8, 'F');
+        }
+        doc.setFontSize(9);
+        doc.text(String(m.name ?? 'N/A').slice(0, 42), 16, y);
+        doc.text(String(m.location ?? 'N/A').slice(0, 34), 92, y);
+        doc.text(String(m.status ?? 'unknown'), 154, y);
+        y += 6;
+      });
+
+      y += 6;
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Generated by INDUPHARMA Dashboard', 14, y);
+
+      finalize();
+    };
+
+    // Try embedding logo; if unavailable, generate report without it.
+    fetch('/logo.png')
+      .then((res) => res.blob())
+      .then((blob) => {
+        const reader = new FileReader();
+        reader.onload = () => drawReport(String(reader.result || ''));
+        reader.onerror = () => drawReport();
+        reader.readAsDataURL(blob);
+      })
+      .catch(() => drawReport());
   };
 
   useEffect(() => {
