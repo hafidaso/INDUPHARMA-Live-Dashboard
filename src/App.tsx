@@ -596,10 +596,10 @@ export default function App() {
   }, [INCIDENT_PROGRESS_STORAGE_KEY]);
 
   useEffect(() => {
-    if (!data?.incidents) return;
+    if (!incidentsWithWorkflow) return;
     
     // Find a new critical incident that hasn't been notified yet
-    const newCritical = data.incidents.find((inc: Incident) => 
+    const newCritical = incidentsWithWorkflow.find((inc: Incident) => 
       inc.severity === 'critical' && 
       !notifiedIncidentIds.has(inc.id) &&
       inc.status === 'open'
@@ -617,7 +617,7 @@ export default function App() {
         console.error('Audio alert failed', e);
       }
     }
-  }, [data?.incidents, notifiedIncidentIds]);
+  }, [incidentsWithWorkflow, notifiedIncidentIds]);
 
   useEffect(() => {
     try {
