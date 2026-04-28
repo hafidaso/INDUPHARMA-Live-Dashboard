@@ -317,6 +317,21 @@ export default function App() {
         ? 'Prioriser la resolution des incidents ouverts et renforcer le suivi des equipements en alerte.'
         : 'Maintenir la surveillance active et verifier la disponibilite maintenance avant les pics de production.');
 
+    const zonesMap = new Map<string, { total: number; active: number }>();
+    (data.machines ?? []).forEach((m: any) => {
+      const zone = m.location || 'N/A';
+      const stats = zonesMap.get(zone) || { total: 0, active: 0 };
+      stats.total += 1;
+      if (m.status === 'active') stats.active += 1;
+      zonesMap.set(zone, stats);
+    });
+    const zoneStats = Array.from(zonesMap.entries()).map(([name, stats]) => ({
+      name,
+      total: stats.total,
+      active: stats.active,
+      percent: Math.round((stats.active / stats.total) * 100)
+    })).slice(0, 4);
+
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -467,7 +482,44 @@ export default function App() {
         y += 6.3;
       });
 
-      y += 1.8;
+      y += 5.5;
+
+      // Productivity by Zone section
+      doc.setTextColor(...colors.title);
+      doc.setFontSize(11.5);
+      doc.text('Performance par Zone', margin, y);
+      y += 3.2;
+
+      doc.setFillColor(241, 245, 249);
+      doc.setDrawColor(...colors.border);
+      doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, 'FD');
+      doc.setTextColor(...colors.subtitle);
+      doc.setFontSize(8.3);
+      doc.text('Nom de la Zone', margin + 2, y + 4.5);
+      doc.text('Total Equip.', margin + 70, y + 4.5);
+      doc.text('En Service', margin + 110, y + 4.5);
+      doc.text('Productivite (%)', margin + 150, y + 4.5);
+      y += 8;
+
+      zoneStats.forEach((z: any, idx: number) => {
+        if (idx % 2 === 0) {
+          doc.setFillColor(250, 250, 249);
+          doc.rect(margin, y - 4.6, contentWidth, 6.8, 'F');
+        }
+        doc.setTextColor(...colors.title);
+        doc.setFontSize(8.2);
+        doc.text(z.name, margin + 2, y);
+        doc.text(String(z.total), margin + 70, y);
+        doc.text(String(z.active), margin + 110, y);
+        
+        const zColor = z.percent >= 80 ? colors.ok : (z.percent >= 50 ? [245, 158, 11] as [number, number, number] : colors.alert);
+        doc.setTextColor(...zColor);
+        doc.setFontSize(8.5);
+        doc.text(`${z.percent}%`, margin + 150, y);
+        y += 6.3;
+      });
+
+      y += 2.5;
 
       // Points d'attention
       const attentionText = attentionPoints.join(' ');
