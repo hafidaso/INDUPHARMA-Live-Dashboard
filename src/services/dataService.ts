@@ -47,9 +47,6 @@ export const SHEET_CONFIG = {
 // ---------------------------------------------------------------------------
 async function fetchCSV<T>(url: string): Promise<T[] | null> {
   if (!url) return null;
-  // Cache buster so each poll reads the latest published CSV.
-  const separator = url.includes('?') ? '&' : '?';
-  const freshUrl = `${url}${separator}_ts=${Date.now()}`;
   const seenHeaders = new Map<string, number>();
 
   const makeUniqueHeader = (rawHeader: string, index: number) => {
@@ -61,7 +58,7 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
   };
 
   return new Promise((resolve) => {
-    Papa.parse<T>(freshUrl, {
+    Papa.parse<T>(url, {
       download: true,
       header: true,
       transformHeader: makeUniqueHeader,
