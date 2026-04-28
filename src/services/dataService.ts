@@ -133,9 +133,9 @@ function normalizeProductionResponse(raw: any): ProductionResponse {
 function toMachineStatus(status: string | undefined): MachineStatus {
   if (!status) return 'inactive';
   const s = status.toLowerCase();
-  if (s === 'active') return 'active';
+  if (s === 'active' || s === 'actif') return 'active';
   if (s === 'maintenance') return 'maintenance';
-  if (s === 'en_panne' || s === 'down') return 'en_panne';
+  if (s === 'en_panne' || s === 'down' || s === 'panne') return 'en_panne';
   return 'inactive';
 }
 

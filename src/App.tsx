@@ -588,6 +588,67 @@ export default function App() {
     );
   }, [incidentsWithWorkflow, incidentProgress]);
 
+  const dashboardKpiSummary: DashboardKpiSummary[] = useMemo(() => {
+    if (!data) return [];
+    const machines = data.machines ?? [];
+    const activeMachines = machines.filter((m: Machine) => m.status === 'active').length;
+    const totalMachines = machines.length;
+    const openIncidents = incidentsWithWorkflow.filter(
+      (i) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated'
+    );
+    const criticalAlerts = openIncidents.filter((i) => i.severity === 'critical' || i.severity === 'high').length;
+    const availableTechs = (data.technicians ?? []).filter((t: Technician) => !!t.is_available).length;
+    const availabilityRate = totalMachines > 0 ? Math.round((activeMachines / totalMachines) * 100) : 0;
+    const mttr =
+      Math.round(((data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mttr_minutes, 0)) / ((data.kpiLogs ?? []).length || 1));
+    const downtime = (data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0);
+
+    return [
+      {
+        metric: 'Machines actives',
+        value: String(activeMachines),
+        unit: '/',
+        status: availabilityRate >= 80 ? 'normal' : 'warning',
+        note: `${totalMachines} machines total`,
+      },
+      {
+        metric: 'Incidents ouverts',
+        value: String(openIncidents.length),
+        unit: '',
+        status: openIncidents.length > 0 ? 'critical' : 'normal',
+        note: 'Live incidents after technician workflow',
+      },
+      {
+        metric: 'Alertes critiques',
+        value: String(criticalAlerts),
+        unit: '',
+        status: criticalAlerts > 0 ? 'critical' : 'normal',
+        note: 'Critical/high incidents currently open',
+      },
+      {
+        metric: 'MTTR moyen',
+        value: String(mttr),
+        unit: 'min',
+        status: 'normal',
+        note: 'Calculated from API-derived KPI logs',
+      },
+      {
+        metric: 'Downtime total',
+        value: String(downtime),
+        unit: 'min',
+        status: 'warning',
+        note: 'Derived from etat_global',
+      },
+      {
+        metric: 'Techniciens dispo.',
+        value: String(availableTechs),
+        unit: '',
+        status: availableTechs > 0 ? 'normal' : 'critical',
+        note: 'Live technician roster availability',
+      },
+    ];
+  }, [data, incidentsWithWorkflow]);
+
   const siteRecommendations = useMemo(() => {
     const criticalIncidents = incidentsWithWorkflow.filter((i: any) => i.severity === 'critical' || i.severity === 'high');
     return criticalIncidents.map((inc: any) => {
@@ -968,7 +1029,7 @@ export default function App() {
             >
               {/* KPI Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {data.kpiSummary.map((kpi: DashboardKpiSummary, idx: number) => (
+                {dashboardKpiSummary.map((kpi: DashboardKpiSummary, idx: number) => (
                       <KPICard 
                         key={idx} 
                         metric={kpi.metric}
@@ -976,7 +1037,7 @@ export default function App() {
                         unit={kpi.unit}
                         status={kpi.status}
                         note={kpi.note}
-                        icon={[Box, AlertTriangle, Clock, Activity, ShieldAlert][idx % 5]} 
+                        icon={[Box, AlertTriangle, ShieldAlert, Clock, Activity, UserCheck][idx % 6]} 
                       />
                 ))}
               </div>
