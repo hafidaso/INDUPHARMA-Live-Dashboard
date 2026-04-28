@@ -58,6 +58,49 @@ type ProductionResponse = {
   equipements: ProductionEquipement[];
 };
 
+function normalizeProductionResponse(raw: any): ProductionResponse {
+  const candidate = raw?.equipements ? raw : raw?.data?.equipements ? raw.data : raw?.result?.equipements ? raw.result : raw;
+
+  const equipementsRaw = Array.isArray(candidate?.equipements)
+    ? candidate.equipements
+    : Array.isArray(candidate)
+      ? candidate
+      : [];
+
+  const equipements: ProductionEquipement[] = equipementsRaw.map((e: any, index: number) => ({
+    equipement_id: String(e?.equipement_id ?? e?.id ?? `EQ-${index}`),
+    code_machine: e?.code_machine ?? null,
+    nom: String(e?.nom ?? e?.name ?? `Equipement ${index + 1}`),
+    zone_production: String(e?.zone_production ?? e?.location ?? 'N/A'),
+    type_equipement: String(e?.type_equipement ?? e?.type ?? 'unknown'),
+    criticite_gmp: e?.criticite_gmp ?? null,
+    statut: String(e?.statut ?? e?.status ?? 'inactive'),
+    nb_alertes_ouvertes: Number(e?.nb_alertes_ouvertes ?? e?.open_alerts ?? 0),
+    etat_global: String(e?.etat_global ?? e?.state ?? 'ok'),
+    mesures_recentes: Array.isArray(e?.mesures_recentes) ? e.mesures_recentes : [],
+  }));
+
+  return {
+    meta: {
+      generated_at: String(candidate?.meta?.generated_at ?? new Date().toISOString()),
+      nb_equipements: Number(candidate?.meta?.nb_equipements ?? equipements.length),
+      equipements_ok: Number(
+        candidate?.meta?.equipements_ok ??
+          equipements.filter((e) => String(e.etat_global).toLowerCase() === 'ok').length
+      ),
+      equipements_alerte: Number(
+        candidate?.meta?.equipements_alerte ??
+          equipements.filter((e) => Number(e.nb_alertes_ouvertes) > 0).length
+      ),
+      nb_alertes_total: Number(
+        candidate?.meta?.nb_alertes_total ??
+          equipements.reduce((sum, e) => sum + Number(e.nb_alertes_ouvertes || 0), 0)
+      ),
+    },
+    equipements,
+  };
+}
+
 function toMachineStatus(status: string | undefined): MachineStatus {
   if (!status) return 'inactive';
   const s = status.toLowerCase();
@@ -136,7 +179,8 @@ async function fetchProductionStatus(): Promise<ProductionResponse> {
     if (!res.ok) {
       throw new Error(`Production endpoint failed: ${res.status}`);
     }
-    return (await res.json()) as ProductionResponse;
+    const raw = await res.json();
+    return normalizeProductionResponse(raw);
   } finally {
     window.clearTimeout(timeout);
   }

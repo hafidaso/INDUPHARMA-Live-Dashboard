@@ -60,6 +60,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { jsPDF } from 'jspdf';
 
 import { 
   fetchSheetData, 
@@ -216,6 +217,57 @@ export default function App() {
     }
   };
 
+  const handleExportReport = () => {
+    if (!data) return;
+
+    const now = new Date();
+    const reportId = `RPT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${now.getTime().toString().slice(-6)}`;
+    const openIncidents = (data.incidents ?? []).filter((i: any) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated').length;
+    const activeMachines = (data.machines ?? []).filter((m: any) => m.status === 'active').length;
+    const totalMachines = (data.machines ?? []).length;
+
+    const doc = new jsPDF();
+    let y = 20;
+    doc.setFontSize(18);
+    doc.text('INDUPHARMA - Rapport de Production', 14, y);
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.text(`Rapport ID: ${reportId}`, 14, y);
+    y += 7;
+    doc.text(`Date: ${now.toLocaleString('fr-FR')}`, 14, y);
+    y += 7;
+    doc.text(`Derniere mise a jour dashboard: ${data.lastUpdate ?? 'N/A'}`, 14, y);
+    y += 12;
+
+    doc.setFontSize(13);
+    doc.text('Resume', 14, y);
+    y += 8;
+    doc.setFontSize(11);
+    doc.text(`- Machines actives: ${activeMachines}/${totalMachines}`, 14, y);
+    y += 7;
+    doc.text(`- Incidents ouverts: ${openIncidents}`, 14, y);
+    y += 7;
+    doc.text(`- Techniciens disponibles: ${(data.technicians ?? []).filter((t: any) => !!t.is_available).length}`, 14, y);
+    y += 10;
+
+    doc.setFontSize(13);
+    doc.text('Equipements', 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    (data.machines ?? []).slice(0, 15).forEach((m: any) => {
+      const line = `${m.name} | ${m.location} | status: ${m.status}`;
+      doc.text(line, 14, y);
+      y += 6;
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+
+    doc.save(`${reportId}.pdf`);
+  };
+
   useEffect(() => {
     handleRefresh();
     const interval = setInterval(() => handleRefresh(true), SHEET_CONFIG.refreshIntervalMs);
@@ -331,7 +383,10 @@ export default function App() {
               >
                 <RefreshCcw className={cn("w-5 h-5", loading && "animate-spin")} />
               </button>
-              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-200 active:scale-95">
+              <button
+                onClick={handleExportReport}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-200 active:scale-95"
+              >
                 <Download className="w-4 h-4 text-blue-200" />
                 Exporter Rapport
               </button>
