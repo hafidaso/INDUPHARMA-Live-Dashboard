@@ -227,9 +227,7 @@ const incidentsMock: Incident[] = [
   { id: 'INC003', machine_id: 'M05', machine_name: 'Chambre Froide S05',detected_at: '2026-04-28 11:15', severity: 'critical', description: 'Température hors plage basse criteria GMP',            status: 'escalated',   created_by: 'auto' },
 ];
 
-const maintenanceActionsMock: MaintenanceAction[] = [
-  { id: 'ACT001', incident_id: 'INC002', technician_id: 'T01', technician_name: 'Jean Dupont', action_taken: 'Inspection et graissage', started_at: '2026-04-28 11:00', notes: 'Prévoir remplacement au prochain arrêt planifié' },
-];
+const maintenanceActionsMock: MaintenanceAction[] = [];
 
 const kpiLogsMock: KpiLog[] = [
   { id: 'K01', machine_id: 'M01', machine_name: 'Autoclave M02',    date: '2026-04-28', downtime_minutes: 120, mtbf_hours: 4.5, mttr_minutes: 45, incident_count: 3, escalation_count: 1, closure_rate: 66  },
