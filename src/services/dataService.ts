@@ -325,6 +325,44 @@ export async function fetchSheetData() {
       }))
     );
     const thresholds: Threshold[] = [];
+    payload.equipements.forEach(e => {
+      const type = e.type_equipement.toLowerCase();
+      const code = (e.code_machine || '').toLowerCase();
+      
+      // Industrial Pharma Standards Mapping
+      if (type.includes('stérilisateur') || code.includes('autoclave')) {
+        thresholds.push(
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'temperature', min_value: 115, max_value: 134, critical_value: 138, unit: '°C' },
+          { id: `T-${e.equipement_id}-2`, machine_id: e.equipement_id, sensor_type: 'pression', min_value: 0.8, max_value: 2.2, critical_value: 2.6, unit: 'bar' }
+        );
+      } else if (type.includes('réfrigérée') || code.includes('chambre_froide')) {
+        thresholds.push(
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'temperature', min_value: 2, max_value: 8, critical_value: 10, unit: '°C' }
+        );
+      } else if (type.includes('enrobage') || code.includes('e06')) {
+        thresholds.push(
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'temperature', min_value: 35, max_value: 55, critical_value: 65, unit: '°C' },
+          { id: `T-${e.equipement_id}-2`, machine_id: e.equipement_id, sensor_type: 'humidite', min_value: 20, max_value: 60, critical_value: 75, unit: '%' }
+        );
+      } else if (type.includes('compresseuse') || type.includes('mélange')) {
+        thresholds.push(
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'temperature', min_value: 15, max_value: 45, critical_value: 55, unit: '°C' },
+          { id: `T-${e.equipement_id}-2`, machine_id: e.equipement_id, sensor_type: 'vibration', min_value: 0.1, max_value: 3.5, critical_value: 6.0, unit: 'g' }
+        );
+      } else if (type.includes('four') || type.includes('thermique')) {
+        thresholds.push(
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'temperature', min_value: 100, max_value: 280, critical_value: 320, unit: '°C' }
+        );
+      } else if (type.includes('pompage')) {
+        thresholds.push(
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'pression', min_value: 1.2, max_value: 3.8, critical_value: 5.0, unit: 'bar' }
+        );
+      } else if (type.includes('packaging')) {
+        thresholds.push(
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'comptage', min_value: 400, max_value: 650, critical_value: 100, unit: 'u/min' }
+        );
+      }
+    });
 
     const kpiLogs: KpiLog[] = payload.equipements.map((e) => ({
       id: `KPI-${e.equipement_id}`,

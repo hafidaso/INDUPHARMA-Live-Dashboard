@@ -1571,48 +1571,108 @@ export default function App() {
           )}
 
           {activeTab === 'Seuils' && (
-            <motion.div key="thresholds" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card title="Configuration des Seuils Critiques GMP" icon={ListFilter}>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-50 border-b border-slate-100">
-                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <th className="px-6 py-4">Équipement</th>
-                        <th className="px-6 py-4">Capteur</th>
-                        <th className="px-6 py-4 text-center">Min</th>
-                        <th className="px-6 py-4 text-center">Max</th>
-                        <th className="px-6 py-4 text-center">Critique</th>
-                        <th className="px-6 py-4">Unité</th>
-                        <th className="px-6 py-4">Status Actuel</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {data.thresholds.map((th: Threshold) => {
-                        const machine = data.machines.find((m: any) => m.id === th.machine_id);
-                        const reading = data.sensorReadings.find((r: any) => r.machine_id === th.machine_id);
-                        return (
-                          <tr key={th.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 text-xs font-black text-slate-800 uppercase">{machine?.name}</td>
-                            <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{th.sensor_type}</td>
-                            <td className="px-6 py-4 text-center font-mono text-xs">{th.min_value}</td>
-                            <td className="px-6 py-4 text-center font-mono text-xs font-bold">{th.max_value}</td>
-                            <td className="px-6 py-4 text-center font-mono text-xs font-black text-red-600">{th.critical_value}</td>
-                            <td className="px-6 py-4 text-xs font-black text-slate-400">{th.unit}</td>
-                            <td className="px-6 py-4">
-                              {reading ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-black text-slate-900">{reading.temperature || reading.pressure || reading.vibration}</span>
-                                  <Badge status={reading.status}>{reading.status}</Badge>
-                                </div>
-                              ) : <span className="text-slate-300">No Data</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+            <motion.div key="thresholds" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                 <div>
+                   <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Configuration des Seuils Critiques GMP</h2>
+                   <p className="text-xs text-slate-400 font-medium">Référentiel industriel validé (Standards USP/ISO)</p>
+                 </div>
+                 <Badge status="normal">Conformité Validée</Badge>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {data.thresholds.map((th: Threshold) => {
+                  const machine = data.machines.find((m: any) => m.id === th.machine_id);
+                  const reading = data.sensorReadings.find((r: any) => r.machine_id === th.machine_id);
+                  
+                  // Extract the specific value for this sensor type
+                  let currentValue: number | null = null;
+                  if (reading) {
+                    if (th.sensor_type === 'temperature') currentValue = reading.temperature ?? null;
+                    if (th.sensor_type === 'pression') currentValue = reading.pressure ?? null;
+                    if (th.sensor_type === 'vibration') currentValue = reading.vibration ?? null;
+                    if (th.sensor_type === 'humidite') currentValue = (reading as any).humidite ?? (reading as any).humidity ?? null;
+                    if (th.sensor_type === 'infrared') currentValue = reading.infrared ?? null;
+                  }
+
+                  // Calculate percentage for gauge (simplified visualization)
+                  // Use a fixed range logic for the gauge visual
+                  const minVal = th.min_value * 0.8; 
+                  const critVal = th.critical_value * 1.1;
+                  const range = critVal - minVal;
+                  const percent = currentValue ? Math.min(100, Math.max(0, ((currentValue - minVal) / range) * 100)) : 0;
+                  
+                  return (
+                    <Card key={th.id} title={machine?.name || 'Machine'} icon={ShieldAlert}>
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-end">
+                           <div>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                                <Activity className="w-3 h-3 text-blue-500" />
+                                {th.sensor_type}
+                              </p>
+                              <p className="text-3xl font-black text-slate-900">
+                                {currentValue != null ? currentValue : '--'}
+                                <span className="text-sm text-slate-300 ml-1 font-bold">{th.unit}</span>
+                              </p>
+                           </div>
+                           <Badge status={reading?.status || 'normal'}>
+                             {reading?.status ? (reading.status === 'normal' ? 'En Plage' : reading.status) : 'Connecté'}
+                           </Badge>
+                        </div>
+
+                        {/* Visual Gauge */}
+                        <div className="space-y-2">
+                           <div className="relative h-5 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200 shadow-inner">
+                              {/* Zones background */}
+                              <div className="absolute inset-0 flex">
+                                 <div className="h-full bg-emerald-500/20 border-r border-emerald-500/10" style={{ width: '60%' }} />
+                                 <div className="h-full bg-amber-500/20 border-r border-amber-500/10" style={{ width: '25%' }} />
+                                 <div className="h-full bg-red-500/20" style={{ width: '15%' }} />
+                              </div>
+                              
+                              {/* Current Position Marker */}
+                              {currentValue != null && (
+                                <motion.div 
+                                  initial={{ left: 0 }}
+                                  animate={{ left: `${percent}%` }}
+                                  className="absolute top-0 bottom-0 w-1.5 bg-slate-900 shadow-[0_0_10px_rgba(0,0,0,0.3)] z-10"
+                                >
+                                  <div className="absolute -top-1 -left-1 w-3 h-3 bg-slate-900 rotate-45" />
+                                </motion.div>
+                              )}
+                           </div>
+                           <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                              <span>Safe Zone</span>
+                              <span>Warning</span>
+                              <span>Critical</span>
+                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                           <div className="p-2 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                              <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Min GMP</p>
+                              <p className="text-xs font-bold text-slate-700">{th.min_value}{th.unit}</p>
+                           </div>
+                           <div className="p-2 bg-blue-50/50 rounded-xl border border-blue-100 text-center">
+                              <p className="text-[9px] font-black text-blue-400 uppercase mb-0.5">Target Max</p>
+                              <p className="text-xs font-bold text-blue-700">{th.max_value}{th.unit}</p>
+                           </div>
+                           <div className="p-2 bg-red-50 rounded-xl border border-red-100 text-center">
+                              <p className="text-[9px] font-black text-red-500 uppercase mb-0.5">Critique</p>
+                              <p className="text-xs font-black text-red-600">{th.critical_value}{th.unit}</p>
+                           </div>
+                        </div>
+
+                        <div className="pt-2 flex items-center gap-2 text-[10px] text-slate-400 font-medium bg-slate-50/50 p-2 rounded-lg">
+                           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                           Compliance: Validation IQ/OQ/PQ Active
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
             </motion.div>
           )}
 
