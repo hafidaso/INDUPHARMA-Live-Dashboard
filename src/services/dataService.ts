@@ -304,7 +304,41 @@ export async function fetchSheetData() {
       isConnected,
     };
   } catch (error) {
-    console.error("Data fetch error:", error);
-    throw error;
+    console.error("Data fetch error (using fallback):", error);
+
+    // Hard fallback to keep dashboard alive even on unexpected runtime issues.
+    const machines = machinesMock;
+    const technicians = techniciansMock;
+    const thresholds = thresholdsMock;
+    const sensorReadings = sensorReadingsMock;
+    const incidents = incidentsMock;
+    const maintenanceActions = maintenanceActionsMock;
+    const kpiLogs = kpiLogsMock;
+
+    const machineView = buildMachineView(machines, sensorReadings, incidents);
+    const kpiSummary = buildKpiSummary(machines, incidents, kpiLogs);
+
+    const histories: Record<string, any[]> = {};
+    machines.forEach((m) => {
+      const r = sensorReadings.find((s) => s.machine_id === m.id);
+      const base = r?.pressure ?? r?.temperature ?? r?.vibration ?? 22;
+      const variance = r?.pressure != null ? 0.8 : r?.vibration != null ? 4.0 : 5.0;
+      histories[m.id] = generateHistory(m.id, 12, base, variance, '');
+    });
+
+    return {
+      machines,
+      technicians,
+      thresholds,
+      sensorReadings,
+      incidents,
+      maintenanceActions,
+      kpiLogs,
+      machineView,
+      kpiSummary,
+      histories,
+      lastUpdate: new Date().toLocaleTimeString('fr-FR'),
+      isConnected: false,
+    };
   }
 }
