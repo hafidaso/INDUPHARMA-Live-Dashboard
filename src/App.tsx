@@ -259,6 +259,8 @@ export default function App() {
   }>>({});
   const [activeCriticalAlert, setActiveCriticalAlert] = useState<Incident | null>(null);
   const [notifiedIncidentIds, setNotifiedIncidentIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'en_panne' | 'maintenance'>('all');
 
   const selectedMachine = useMemo(() => {
     if (!data || !selectedMachineId) return null;
@@ -435,6 +437,54 @@ export default function App() {
       };
     });
   }, [data?.machineView, incidentsWithWorkflow]);
+
+  const filteredMachineView = useMemo(() => {
+    let result = [...machineViewWithWorkflow];
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(m => 
+        m.machine_name.toLowerCase().includes(q) || 
+        m.type.toLowerCase().includes(q) || 
+        m.location.toLowerCase().includes(q) ||
+        m.code_machine?.toLowerCase().includes(q)
+      );
+    }
+    
+    if (statusFilter !== 'all') {
+      result = result.filter(m => m.machine_status === statusFilter);
+    }
+    
+    result.sort((a, b) => {
+      const score = (s: string) => s === 'en_panne' ? 3 : s === 'maintenance' ? 2 : s === 'active' ? 1 : 0;
+      return score(b.machine_status) - score(a.machine_status);
+    });
+    
+    return result;
+  }, [machineViewWithWorkflow, searchQuery, statusFilter]);
+
+  const filteredMachines = useMemo(() => {
+    if (!data?.machines) return [];
+    let result = [...data.machines];
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(m => 
+        m.name.toLowerCase().includes(q) || 
+        m.type.toLowerCase().includes(q) || 
+        m.code_machine?.toLowerCase().includes(q)
+      );
+    }
+    if (statusFilter !== 'all') {
+      result = result.filter(m => m.status === statusFilter);
+    }
+    
+    result.sort((a, b) => {
+      const score = (s: string) => s === 'en_panne' ? 3 : s === 'maintenance' ? 2 : s === 'active' ? 1 : 0;
+      return score(b.status) - score(a.status);
+    });
+    
+    return result;
+  }, [data, searchQuery, statusFilter]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1188,19 +1238,36 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Machine Status Grid */}
                 <div className="lg:col-span-2 space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
                        <Box className="w-5 h-5 text-blue-600" />
                        Machine Status Map
                     </h2>
-                    <div className="flex items-center gap-2">
-                      <Search className="w-4 h-4 text-slate-400" />
-                      <input className="bg-white border border-slate-200 rounded-md text-xs px-3 py-1.5 focus:ring-1 focus:ring-blue-500 outline-none w-40" placeholder="Rechercher..." />
+                    <div className="flex flex-wrap items-center gap-2">
+                       <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
+                          <Search className="w-4 h-4 text-slate-400" />
+                          <input 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="text-xs outline-none w-28 md:w-40 bg-transparent" 
+                            placeholder="Rechercher..." 
+                          />
+                       </div>
+                       <select 
+                         value={statusFilter}
+                         onChange={(e) => setStatusFilter(e.target.value as any)}
+                         className="bg-white border border-slate-200 rounded-lg text-[10px] font-black uppercase px-2 py-1.5 outline-none shadow-sm cursor-pointer"
+                       >
+                          <option value="all">Tous Status</option>
+                          <option value="active">Actifs</option>
+                          <option value="en_panne">🚨 En Panne</option>
+                          <option value="maintenance">🔧 Maintenance</option>
+                       </select>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {machineViewWithWorkflow.map((mv: DashboardMachineView) => (
+                    {filteredMachineView.map((mv: DashboardMachineView) => (
                       <Card 
                         key={mv.machine_id} 
                         className="cursor-pointer hover:border-blue-300 group"
@@ -1622,8 +1689,34 @@ export default function App() {
           )}
 
           {activeTab === 'Machines' && (
-            <motion.div key="machines" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {data.machines.map((m: Machine) => (
+            <motion.div key="machines" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">Inventaire des Équipements</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5">
+                      <Search className="w-4 h-4 text-slate-400" />
+                      <input 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="text-xs outline-none w-28 md:w-40 bg-transparent" 
+                        placeholder="Rechercher machine..." 
+                      />
+                    </div>
+                    <select 
+                       value={statusFilter}
+                       onChange={(e) => setStatusFilter(e.target.value as any)}
+                       className="bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-black uppercase px-2 py-1.5 outline-none cursor-pointer"
+                     >
+                        <option value="all">Tous Status</option>
+                        <option value="active">Actifs</option>
+                        <option value="en_panne">En Panne</option>
+                        <option value="maintenance">Maintenance</option>
+                     </select>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredMachines.map((m: Machine) => (
                  <Card key={m.id} title={m.name} icon={Box}>
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
