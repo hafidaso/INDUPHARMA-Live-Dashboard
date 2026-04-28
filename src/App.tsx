@@ -1,0 +1,984 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Activity, 
+  AlertTriangle, 
+  CheckCircle2, 
+  Clock, 
+  Database, 
+  Download, 
+  FileText, 
+  Filter, 
+  LayoutDashboard, 
+  Layers, 
+  RefreshCcw, 
+  Search, 
+  Settings, 
+  ShieldAlert, 
+  ShieldCheck, 
+  Thermometer, 
+  TrendingUp, 
+  Zap,
+  ChevronRight,
+  Info,
+  User,
+  Box,
+  Cpu,
+  ArrowRight,
+  Bell,
+  Calendar,
+  X,
+  Smartphone,
+  Wrench,
+  BarChart3,
+  ListFilter,
+  UserCheck,
+  ClipboardList
+} from 'lucide-react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  Legend,
+  ReferenceLine
+} from 'recharts';
+import { motion, AnimatePresence } from 'motion/react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+import { 
+  fetchSheetData, 
+  SHEET_CONFIG 
+} from './services/dataService';
+import { 
+  Machine, 
+  Technician, 
+  Threshold, 
+  SensorReading, 
+  Incident, 
+  MaintenanceAction, 
+  KpiLog, 
+  DashboardMachineView, 
+  DashboardKpiSummary,
+  MachineStatus,
+  ReadingStatus,
+  Severity,
+  IncidentStatus
+} from './types';
+
+// Utility for tailwind classes
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// --- Status Color Helpers ---
+const getStatusColor = (status: string | undefined) => {
+  const s = String(status).toLowerCase();
+  if (['active', 'normal', 'low', 'closed', 'true'].includes(s)) return 'emerald';
+  if (['maintenance', 'warning', 'medium', 'in_progress'].includes(s)) return 'amber';
+  if (['en_panne', 'critical', 'high', 'open', 'escalated'].includes(s)) return 'red';
+  if (['inactive', 'error', 'false'].includes(s)) return 'slate';
+  return 'slate';
+};
+
+const getStatusBadgeClass = (status: string | undefined) => {
+  const color = getStatusColor(status);
+  return cn(
+    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap",
+    color === 'emerald' && "bg-emerald-50 text-emerald-600 border-emerald-200",
+    color === 'amber' && "bg-amber-50 text-amber-600 border-amber-200",
+    color === 'red' && "bg-red-50 text-red-600 border-red-200",
+    color === 'slate' && "bg-slate-50 text-slate-500 border-slate-200"
+  );
+};
+
+// --- Custom Components ---
+
+const Badge = ({ children, status }: { children: React.ReactNode, status: string | undefined }) => (
+  <span className={getStatusBadgeClass(status)}>
+    {children}
+  </span>
+);
+
+const Card: React.FC<{ children: React.ReactNode, className?: string, title?: string, icon?: any }> = ({ children, className, title, icon: Icon }) => (
+  <div className={cn("bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all", className)}>
+    {title && (
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+        <h3 className="text-slate-800 font-bold text-sm flex items-center gap-2">
+          {Icon && <Icon className="w-4 h-4 text-blue-600" />}
+          {title}
+        </h3>
+      </div>
+    )}
+    <div className="p-5">
+      {children}
+    </div>
+  </div>
+);
+
+interface KPICardProps extends DashboardKpiSummary {
+  icon: any;
+  key?: number | string;
+}
+
+const KPICard = ({ metric, value, unit, status, note, icon: Icon }: KPICardProps) => {
+  const color = getStatusColor(status);
+  return (
+    <Card className="flex flex-col h-full bg-white border-l-4" style={{ borderLeftColor: `var(--color-${color}-500)` }}>
+      <div className="flex justify-between items-start mb-4">
+        <div className={cn("p-2 rounded-lg", 
+          color === 'emerald' && "bg-emerald-100 text-emerald-600",
+          color === 'amber' && "bg-amber-100 text-amber-600",
+          color === 'red' && "bg-red-100 text-red-600",
+          color === 'slate' && "bg-slate-100 text-slate-600"
+        )}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <Badge status={status}>{status}</Badge>
+      </div>
+      <div>
+        <h4 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{metric}</h4>
+        <div className="flex items-baseline gap-1 mt-1">
+          <span className="text-2xl font-black text-slate-900">{value}</span>
+          <span className="text-slate-500 text-xs font-bold">{unit}</span>
+        </div>
+        <p className="text-[10px] text-slate-400 mt-2 italic font-medium">{note}</p>
+      </div>
+    </Card>
+  );
+};
+
+// --- Main App ---
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('Vue Globale');
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+
+  const handleRefresh = async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const result = await fetchSheetData();
+      setData(result);
+      setError(null);
+    } catch (err) {
+      setError("Connection Error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    handleRefresh();
+    const interval = setInterval(() => handleRefresh(true), SHEET_CONFIG.refreshIntervalMs);
+    return () => clearInterval(interval);
+  }, []);
+
+  const selectedMachine = useMemo(() => {
+    if (!data || !selectedMachineId) return null;
+    return data.machines.find((m: any) => m.id === selectedMachineId);
+  }, [data, selectedMachineId]);
+
+  const siteRecommendations = useMemo(() => {
+    if (!data) return [];
+    const criticalIncidents = data.incidents.filter((i: any) => i.severity === 'critical' || i.severity === 'high');
+    
+    return criticalIncidents.map((inc: any) => {
+      let rec = "Inspection immédiate requise.";
+      let owner = "Maintenance";
+
+      if (inc.machine_name?.includes('Autoclave') && inc.description.includes('Surpression')) {
+        rec = "Surpression détectée. Vérifier la valve de sécurité, isoler l’équipement et valider QA avant reprise.";
+        owner = "Qualité / Maintenance";
+      } else if (inc.machine_name?.includes('Chambre Froide')) {
+        rec = "Température hors plage basse. Contrôler le thermostat, vérifier les lots sensibles et maintenir la quarantaine jusqu’à validation QA.";
+        owner = "Qualité";
+      } else if (inc.description.includes('Vibration')) {
+        rec = "Vibration anormale. Planifier inspection roulements et surveillance renforcée.";
+        owner = "Maintenance";
+      }
+
+      return {
+        machine: inc.machine_name,
+        severity: inc.severity,
+        recommendation: rec,
+        owner
+      };
+    });
+  }, [data]);
+
+  if (loading && !data) return (
+    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center">
+      <RefreshCcw className="w-8 h-8 text-blue-600 animate-spin" />
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#F7F4EE] text-slate-800 font-sans selection:bg-blue-600/10">
+      
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-4">
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 font-sans">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+              <Zap className="text-white w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                INDUPHARMA
+                {error ? (
+                  <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] uppercase tracking-widest rounded border border-red-200 font-black flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Connection Error
+                  </span>
+                ) : data?.isConnected ? (
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[10px] uppercase tracking-widest rounded border border-emerald-200 font-black flex items-center gap-1">
+                    <Database className="w-3 h-3" /> Connected to Google Sheet
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] uppercase tracking-widest rounded border border-blue-100 font-black flex items-center gap-1">
+                    <Database className="w-3 h-3" /> Google Sheet Ready
+                  </span>
+                )}
+              </h1>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Live Downtime Monitoring & GMP Maintenance Intelligence</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="hidden xl:flex items-center gap-6">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Last Refresh</span>
+                <span className="text-sm text-slate-700 font-bold font-mono">{data?.lastUpdate || '--:--:--'}</span>
+              </div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Global Status</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  <span className="text-xs font-black text-emerald-600 uppercase">Operational</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => handleRefresh()}
+                className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-all active:scale-95"
+              >
+                <RefreshCcw className={cn("w-5 h-5", loading && "animate-spin")} />
+              </button>
+              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-200 active:scale-95">
+                <Download className="w-4 h-4 text-blue-200" />
+                Exporter Rapport
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-[1600px] mx-auto p-6 space-y-6">
+        
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-slate-200 overflow-x-auto no-scrollbar shadow-sm">
+          {[
+            { id: 'Vue Globale', icon: LayoutDashboard },
+            { id: 'Machines', icon: Box },
+            { id: 'Capteurs', icon: Smartphone },
+            { id: 'Incidents', icon: AlertTriangle },
+            { id: 'Maintenance', icon: Wrench },
+            { id: 'KPIs', icon: BarChart3 },
+            { id: 'Seuils', icon: ListFilter },
+            { id: 'Techniciens', icon: UserCheck }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                activeTab === tab.id 
+                  ? "bg-slate-900 text-white shadow-lg" 
+                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+              )}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.id}
+            </button>
+          ))}
+        </div>
+
+        <AnimatePresence mode="wait">
+          {activeTab === 'Vue Globale' && (
+            <motion.div 
+              key="global-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              {/* KPI Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {data.kpiSummary.map((kpi: DashboardKpiSummary, idx: number) => (
+                      <KPICard 
+                        key={idx} 
+                        metric={kpi.metric}
+                        value={kpi.value}
+                        unit={kpi.unit}
+                        status={kpi.status}
+                        note={kpi.note}
+                        icon={[Box, AlertTriangle, Clock, Activity, ShieldAlert][idx % 5]} 
+                      />
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Machine Status Grid */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                       <Box className="w-5 h-5 text-blue-600" />
+                       Machine Status Map
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <Search className="w-4 h-4 text-slate-400" />
+                      <input className="bg-white border border-slate-200 rounded-md text-xs px-3 py-1.5 focus:ring-1 focus:ring-blue-500 outline-none w-40" placeholder="Rechercher..." />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {data.machineView.map((mv: DashboardMachineView) => (
+                      <Card 
+                        key={mv.machine_id} 
+                        className="cursor-pointer hover:border-blue-300 group"
+                        onClick={() => setSelectedMachineId(mv.machine_id)}
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="text-slate-900 font-black text-sm uppercase tracking-tight group-hover:text-blue-600 transition-colors">
+                              {mv.machine_name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase">{mv.type}</span>
+                              <span className="text-slate-300 text-[10px]">•</span>
+                              <span className="text-[10px] text-slate-500 font-bold uppercase">{mv.location}</span>
+                            </div>
+                          </div>
+                          <Badge status={mv.machine_status}>{mv.machine_status}</Badge>
+                        </div>
+
+                        <div className="p-3 bg-slate-50 rounded-lg space-y-3 border border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Smartphone className="w-3.5 h-3.5 text-slate-400" />
+                              <span className="text-[10px] font-black text-slate-500 uppercase">{mv.latest_device}</span>
+                            </div>
+                            <Badge status={mv.latest_status}>{mv.latest_status}</Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700">{mv.latest_value_summary}</span>
+                            <Badge status={mv.latest_severity}>{mv.latest_severity}</Badge>
+                          </div>
+                        </div>
+
+                        {mv.active_incident && (
+                          <div className="mt-3 flex items-center justify-between px-3 py-2 bg-red-50 border border-red-100 rounded-lg animate-pulse">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                              <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">Incident: {mv.active_incident}</span>
+                            </div>
+                            <Badge status={mv.incident_status}>{mv.incident_status}</Badge>
+                          </div>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sidebar Cards */}
+                <div className="space-y-6">
+                  {/* AI Recommendations */}
+                  <Card title="Maintenance Assistant IA" icon={Cpu} className="border-blue-200">
+                    <div className="space-y-4">
+                      {siteRecommendations.map((rec: any, idx: number) => (
+                        <div key={idx} className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-blue-700 uppercase">{rec.machine}</span>
+                            <Badge status={rec.severity}>{rec.severity}</Badge>
+                          </div>
+                          <p className="text-xs text-blue-900 font-medium leading-relaxed italic">
+                            "{rec.recommendation}"
+                          </p>
+                          <div className="flex items-center gap-2 pt-1 border-t border-blue-100">
+                            <UserCheck className="w-3 h-3 text-blue-400" />
+                            <span className="text-[10px] font-black text-blue-500 uppercase">Recommended: {rec.owner}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {siteRecommendations.length === 0 && (
+                        <div className="text-center py-6 text-slate-400">
+                          <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                          <p className="text-xs font-bold uppercase tracking-widest">Aucun risque critique détecté</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                  {/* Technician Status */}
+                  <Card title="Techniciens de Garde" icon={UserCheck}>
+                    <div className="space-y-3">
+                      {data.technicians.map((tech: Technician) => (
+                        <div key={tech.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
+                              <User className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-black text-slate-800">{tech.name}</h4>
+                              <p className="text-[10px] text-slate-500 font-bold uppercase">{tech.role}</p>
+                            </div>
+                          </div>
+                          <Badge status={tech.is_available ? 'active' : 'inactive'}>
+                            {tech.is_available ? 'Libre' : 'Occupé'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Incidents Section */}
+              <Card title="Rapport d’Incidents Pharma (Live)" icon={AlertTriangle}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-100">
+                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <th className="px-6 py-4">ID</th>
+                        <th className="px-6 py-4">Machine</th>
+                        <th className="px-6 py-4">Détection</th>
+                        <th className="px-6 py-4">Sévérité</th>
+                        <th className="px-6 py-4">Description</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4">Origine</th>
+                        <th className="px-6 py-4">Technicien</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {data.incidents.map((incident: Incident) => {
+                        const action = data.maintenanceActions.find((a: any) => a.incident_id === incident.id);
+                        return (
+                          <tr key={incident.id} className="hover:bg-slate-50 transition-colors group">
+                            <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono">{incident.id}</td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs font-black text-slate-800 uppercase tracking-tight">{incident.machine_name}</span>
+                            </td>
+                            <td className="px-6 py-4 text-[10px] text-slate-500 font-bold">{incident.detected_at}</td>
+                            <td className="px-6 py-4"><Badge status={incident.severity}>{incident.severity}</Badge></td>
+                            <td className="px-6 py-4">
+                              <p className="text-xs text-slate-600 line-clamp-1 max-w-xs">{incident.description}</p>
+                            </td>
+                            <td className="px-6 py-4"><Badge status={incident.status}>{incident.status}</Badge></td>
+                            <td className="px-6 py-4">
+                              <span className={cn("text-[9px] font-black uppercase px-2 py-0.5 rounded", 
+                                incident.created_by === 'auto' ? "bg-purple-100 text-purple-600 border border-purple-200" : "bg-slate-100 text-slate-600 border border-slate-200"
+                              )}>
+                                {incident.created_by}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              {action ? (
+                                <div className="flex items-center gap-2">
+                                  <User className="w-3 h-3 text-slate-400" />
+                                  <span className="text-xs font-bold text-slate-700">{action.technician_name}</span>
+                                </div>
+                              ) : <span className="text-[10px] text-slate-300 italic">Non assigné</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {activeTab === 'KPIs' && (
+            <motion.div 
+              key="kpi-view"
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card title="Downtime Trends (Derniers 7 Jours)" icon={Activity}>
+                  <div className="h-[350px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={data.kpiLogs}>
+                        <defs>
+                          <linearGradient id="colorDown" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="machine_name" fontSize={10} fontVariant="bold" />
+                        <YAxis fontSize={10} tickFormatter={(val) => `${val}m`} />
+                        <Tooltip />
+                        <Area type="monotone" dataKey="downtime_minutes" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDown)" strokeWidth={3} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+
+                <Card title="MTTR par Équipement" icon={Clock}>
+                  <div className="h-[350px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.kpiLogs}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="machine_name" fontSize={10} />
+                        <YAxis fontSize={10} unit=" min" />
+                        <Tooltip />
+                        <Bar dataKey="mttr_minutes" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={40} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {data.kpiLogs.map((log: KpiLog) => (
+                  <Card key={log.id} title={log.machine_name} icon={ClipboardList}>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-black uppercase">Downtime</p>
+                        <p className="text-xl font-black text-slate-900">{log.downtime_minutes}<span className="text-xs text-slate-400 ml-1">min</span></p>
+                      </div>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-black uppercase">Incidents</p>
+                        <p className="text-xl font-black text-slate-900">{log.incident_count}</p>
+                      </div>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-black uppercase">MTBF</p>
+                        <p className="text-lg font-black text-slate-900">{log.mtbf_hours}<span className="text-xs text-slate-400 ml-1">Hrs</span></p>
+                      </div>
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <p className="text-[10px] text-slate-400 font-black uppercase">Closure Rate</p>
+                        <p className={cn("text-lg font-black", log.closure_rate >= 90 ? "text-emerald-600" : "text-amber-600")}>{log.closure_rate}%</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'Seuils' && (
+            <motion.div key="thresholds" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <Card title="Configuration des Seuils Critiques GMP" icon={ListFilter}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-100">
+                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <th className="px-6 py-4">Équipement</th>
+                        <th className="px-6 py-4">Capteur</th>
+                        <th className="px-6 py-4 text-center">Min</th>
+                        <th className="px-6 py-4 text-center">Max</th>
+                        <th className="px-6 py-4 text-center">Critique</th>
+                        <th className="px-6 py-4">Unité</th>
+                        <th className="px-6 py-4">Status Actuel</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {data.thresholds.map((th: Threshold) => {
+                        const machine = data.machines.find((m: any) => m.id === th.machine_id);
+                        const reading = data.sensorReadings.find((r: any) => r.machine_id === th.machine_id);
+                        return (
+                          <tr key={th.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-6 py-4 text-xs font-black text-slate-800 uppercase">{machine?.name}</td>
+                            <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{th.sensor_type}</td>
+                            <td className="px-6 py-4 text-center font-mono text-xs">{th.min_value}</td>
+                            <td className="px-6 py-4 text-center font-mono text-xs font-bold">{th.max_value}</td>
+                            <td className="px-6 py-4 text-center font-mono text-xs font-black text-red-600">{th.critical_value}</td>
+                            <td className="px-6 py-4 text-xs font-black text-slate-400">{th.unit}</td>
+                            <td className="px-6 py-4">
+                              {reading ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black text-slate-900">{reading.temperature || reading.pressure || reading.vibration}</span>
+                                  <Badge status={reading.status}>{reading.status}</Badge>
+                                </div>
+                              ) : <span className="text-slate-300">No Data</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {activeTab === 'Techniciens' && (
+            <motion.div key="techs" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {data.technicians.map((tech: Technician) => (
+                  <Card key={tech.id} className="hover:border-blue-200">
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-200">
+                        <User className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{tech.name}</h3>
+                        <p className="text-xs text-blue-600 font-black uppercase tracking-widest">{tech.role}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <Smartphone className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm font-bold text-slate-700">{tech.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <Bell className="w-4 h-4 text-slate-400" />
+                        <span className="text-xs font-bold text-slate-600">{tech.email}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Disponibilité</span>
+                      <Badge status={tech.is_available ? 'active' : 'inactive'}>
+                        {tech.is_available ? 'Disponible Immédiatement' : 'En Intervention'}
+                      </Badge>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'Capteurs' && (
+            <motion.div key="sensors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                 <Card title="Pression: Autoclave M02" icon={Activity}>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data.histories['M01']}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                          <YAxis fontSize={10} unit=" bar" />
+                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
+                          <ReferenceLine y={2.5} label="Max" stroke="#f59e0b" strokeDasharray="3 3" />
+                          <ReferenceLine y={3.0} label="Critique" stroke="#dc2626" strokeDasharray="3 3" />
+                          <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb' }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </Card>
+
+                 <Card title="Vibration: Compresseuse C01" icon={Zap}>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data.histories['M02']}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                          <YAxis fontSize={10} unit=" mm/s" />
+                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
+                          <Area type="monotone" dataKey="value" stroke="#f59e0b" fill="#fef3c7" strokeWidth={3} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </Card>
+
+                 <Card title="Infrarouge: Mélangeur B03" icon={Thermometer}>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data.histories['M03']}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                          <YAxis fontSize={10} unit=" °C" />
+                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
+                          <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </Card>
+
+                 <Card title="Température: Chambre Froide S05 & Remplisseuse R04" icon={Thermometer}>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} allowDuplicatedCategory={false} />
+                          <YAxis fontSize={10} unit=" °C" />
+                          <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
+                          <ReferenceLine y={2.0} stroke="#dc2626" strokeDasharray="2 2" />
+                          <ReferenceLine y={1.5} label="Critique" stroke="#dc2626" strokeWidth={2} />
+                          <Line data={data.histories['M05']} type="monotone" dataKey="value" name="Chambre Froide S05" stroke="#3b82f6" strokeWidth={3} dot={false} />
+                          <Line data={data.histories['M04']} type="monotone" dataKey="value" name="Remplisseuse R04" stroke="#10b981" strokeWidth={3} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </Card>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'Machines' && (
+            <motion.div key="machines" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {data.machines.map((m: Machine) => (
+                 <Card key={m.id} title={m.name} icon={Box}>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Localisation</span>
+                        <span className="text-xs font-bold text-slate-700">{m.location}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</span>
+                        <span className="text-xs font-bold text-slate-700">{m.type}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                        <Badge status={m.status}>{m.status}</Badge>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</span>
+                         <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">{m.id}</span>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedMachineId(m.id)}
+                        className="w-full mt-2 py-2 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all border border-slate-100"
+                      >
+                        Détails Complets
+                      </button>
+                    </div>
+                 </Card>
+               ))}
+            </motion.div>
+          )}
+
+          {activeTab === 'Maintenance' && (
+            <motion.div key="maintenance" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+               <Card title="Journal des Actions de Maintenance" icon={Wrench}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 border-b border-slate-100">
+                        <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          <th className="px-6 py-4">ID Action</th>
+                          <th className="px-6 py-4">Incident</th>
+                          <th className="px-6 py-4">Technicien</th>
+                          <th className="px-6 py-4">Action Réalisée</th>
+                          <th className="px-6 py-4">Début</th>
+                          <th className="px-6 py-4">Fin</th>
+                          <th className="px-6 py-4">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {data.maintenanceActions.map((action: MaintenanceAction) => (
+                          <tr key={action.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-6 py-4 text-[10px] font-mono font-black text-slate-400">{action.id}</td>
+                            <td className="px-6 py-4 text-[10px] font-black text-blue-600 uppercase font-mono">{action.incident_id}</td>
+                            <td className="px-6 py-4">
+                               <div className="flex items-center gap-2">
+                                  <User className="w-3.5 h-3.5 text-slate-400" />
+                                  <span className="text-xs font-bold text-slate-800">{action.technician_name}</span>
+                               </div>
+                            </td>
+                            <td className="px-6 py-4 text-xs font-bold text-slate-700">{action.action_taken}</td>
+                            <td className="px-6 py-4 text-[10px] text-slate-500 font-bold">{action.started_at}</td>
+                            <td className="px-6 py-4 text-[10px] text-slate-500 font-bold">{action.completed_at || 'En cours'}</td>
+                            <td className="px-6 py-4 text-xs text-slate-500 italic max-w-xs truncate">{action.notes || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+               </Card>
+            </motion.div>
+          )}
+
+          {activeTab === 'Incidents' && (
+            <motion.div key="incidents-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <Card title="Incidents & Workflow Performance" icon={AlertTriangle}>
+                    <div className="space-y-8">
+                       {data.incidents.map((incident: Incident) => (
+                         <div key={incident.id} className="p-6 border border-slate-100 rounded-2xl bg-slate-50/30">
+                            <div className="flex items-center justify-between mb-6">
+                               <div className="flex items-center gap-4">
+                                  <div className={cn("p-2 rounded-lg", getStatusColor(incident.severity) === 'red' ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600")}>
+                                     <ShieldAlert className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{incident.machine_name} - {incident.id}</h3>
+                                     <Badge status={incident.status}>{incident.status}</Badge>
+                                  </div>
+                               </div>
+                               <div className="text-right">
+                                  <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Detecté le</p>
+                                  <p className="text-xs font-bold text-slate-700">{incident.detected_at}</p>
+                               </div>
+                            </div>
+                            
+                            {/* Workflow Timeline */}
+                            <div className="relative mt-8 mb-12">
+                               <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2" />
+                               <div className="flex justify-between items-center relative">
+                                  {[
+                                    { label: 'Détecté', time: incident.detected_at, icon: Bell },
+                                    { label: 'Pris en charge', time: incident.acknowledged_at, icon: UserCheck },
+                                    { label: 'Intervention', time: data.maintenanceActions.find((a: any) => a.incident_id === incident.id)?.started_at, icon: Wrench },
+                                    { label: 'Résolu', time: incident.resolved_at, icon: CheckCircle2 }
+                                  ].map((step, idx) => (
+                                    <div key={idx} className="flex flex-col items-center gap-2">
+                                       <div className={cn(
+                                         "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all shadow-sm z-10",
+                                         step.time ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200 text-slate-300"
+                                       )}>
+                                         <step.icon className="w-4 h-4" />
+                                       </div>
+                                       <div className="text-center absolute top-10 whitespace-nowrap">
+                                          <p className="text-[9px] font-black uppercase tracking-tighter text-slate-500">{step.label}</p>
+                                          <p className="text-[9px] font-bold text-blue-600">{step.time || 'En attente...'}</p>
+                                       </div>
+                                    </div>
+                                  ))}
+                               </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-12">
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</p>
+                                  <p className="text-xs text-slate-700 font-medium">{incident.description}</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cause Racine</p>
+                                  <p className="text-xs text-slate-700 font-medium">{incident.root_cause || 'Investigation en cours'}</p>
+                               </div>
+                               <div className="space-y-1">
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Origine</p>
+                                  <Badge status={incident.created_by}>{incident.created_by}</Badge>
+                               </div>
+                            </div>
+                         </div>
+                       ))}
+                    </div>
+                </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Detail Modal / Panel for selected machine */}
+        <AnimatePresence>
+          {selectedMachine && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-end">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setSelectedMachineId(null)}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+                className="relative w-full max-w-xl h-full bg-white shadow-2xl p-8 overflow-y-auto"
+              >
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-100">
+                      <Box className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{selectedMachine.name}</h2>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{selectedMachine.id} • {selectedMachine.location}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedMachineId(null)}
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-8">
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut Machine</span>
+                        <div className="mt-2"><Badge status={selectedMachine.status}>{selectedMachine.status}</Badge></div>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</span>
+                        <p className="mt-2 text-sm font-black text-slate-800 uppercase tracking-tighter">{selectedMachine.type}</p>
+                      </div>
+                   </div>
+
+                   <Card title="Dépassements & Seuils Actifs" icon={ListFilter}>
+                      <div className="space-y-4">
+                        {data.thresholds.filter((t: any) => t.machine_id === selectedMachine.id).map((th: Threshold) => (
+                          <div key={th.id} className="p-4 bg-red-50/50 border border-red-100 rounded-xl">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-black text-red-600 uppercase tracking-widest">{th.sensor_type}</span>
+                              <span className="text-xs font-black text-red-700">{th.critical_value} {th.unit}</span>
+                            </div>
+                            <div className="h-1.5 bg-red-100 rounded-full">
+                              <div className="w-3/4 h-full bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                   </Card>
+
+                   <Card title="Incidents Récents sur Équipement" icon={AlertTriangle}>
+                      <div className="space-y-4">
+                        {data.incidents.filter((i: any) => i.machine_id === selectedMachine.id).map((inc: Incident) => (
+                           <div key={inc.id} className="p-4 border border-slate-100 rounded-xl space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black text-slate-400 font-mono">{inc.id}</span>
+                                <Badge status={inc.status}>{inc.status}</Badge>
+                              </div>
+                              <p className="text-sm font-bold text-slate-800">{inc.description}</p>
+                              <div className="flex items-center gap-2 pt-2 text-[10px] text-slate-400 font-bold uppercase">
+                                <Clock className="w-3 h-3" /> Detecté à {inc.detected_at}
+                              </div>
+                           </div>
+                        ))}
+                      </div>
+                   </Card>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Footer */}
+      <footer className="max-w-[1600px] mx-auto p-8 flex flex-col md:flex-row items-center justify-between border-t border-slate-200 mt-12 text-slate-400">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
+            <Zap className="w-4 h-4" />
+          </div>
+          <span className="text-xs font-black uppercase tracking-widest">© 2026 INDUPHARMA Industrial System</span>
+        </div>
+        <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest mt-6 md:mt-0">
+          <a href="#" className="hover:text-blue-600 transition-colors">Safety Protocols</a>
+          <a href="#" className="hover:text-blue-600 transition-colors">GMP Compliance</a>
+          <a href="#" className="hover:text-blue-600 transition-colors">System Support</a>
+        </div>
+      </footer>
+    </div>
+  );
+}
