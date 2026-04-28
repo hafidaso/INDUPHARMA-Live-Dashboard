@@ -245,23 +245,47 @@ export async function fetchSheetData() {
       created_at: payload.meta.generated_at,
     }));
 
-    const technicians: Technician[] = payload.equipements
-      .flatMap((e) => e.techniciens ?? [])
-      .filter((t) => String(t?.role ?? '').toLowerCase().includes('technicien_maintenance'))
-      .map((t, index) => {
+    const techniciansRaw: Technician[] = payload.equipements
+      .flatMap((e) =>
+        (e.techniciens ?? []).map((t) => ({
+          ...t,
+          machine_name: e.nom,
+        }))
+      )
+      .map((t: any, index) => {
         const status = String(t?.status ?? '').toLowerCase();
-        const isAvailable = status !== 'in_progress' && status !== 'blocked';
+        const normalizedStatus =
+          status === 'in_progress' || status === 'done' || status === 'blocked' ? status : 'not_yet';
+        const isAvailable = normalizedStatus !== 'in_progress' && normalizedStatus !== 'blocked';
         const email = String(t?.email ?? `tech${index + 1}@indupharma.local`);
         return {
           id: String(t?.id ?? email ?? `TECH-${index + 1}`),
           name: String(t?.name ?? `Technicien ${index + 1}`),
-          role: String(t?.role ?? 'technicien_maintenance'),
+          role: String(t?.role ?? 'technicien'),
           email,
           phone: String(t?.phone ?? 'N/A'),
           is_available: isAvailable,
+          work_status: normalizedStatus as Technician['work_status'],
+          current_machine: String(t?.machine_name ?? ''),
+          current_action: String(t?.action_taken ?? ''),
         };
-      })
-      .filter((tech, idx, arr) => arr.findIndex((t) => t.email === tech.email || t.name === tech.name) === idx);
+      });
+
+    const technicians: Technician[] = Array.from(
+      techniciansRaw.reduce((map, tech) => {
+        const key = tech.email || tech.name;
+        const prev = map.get(key);
+        if (!prev) {
+          map.set(key, tech);
+          return map;
+        }
+        const score = (s?: string) => (s === 'in_progress' ? 3 : s === 'blocked' ? 2 : s === 'not_yet' ? 1 : 0);
+        if (score(tech.work_status) >= score(prev.work_status)) {
+          map.set(key, tech);
+        }
+        return map;
+      }, new Map<string, Technician>())
+    ).map(([, tech]) => tech);
 
     const sensorReadings: SensorReading[] = payload.equipements
       .map((e) => {

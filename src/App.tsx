@@ -675,6 +675,15 @@ export default function App() {
     });
   }, [incidentsWithWorkflow]);
 
+  const technicianGroups = useMemo(() => {
+    const allTechs: Technician[] = data?.technicians ?? [];
+    return {
+      activeNow: allTechs.filter((t) => t.work_status === 'in_progress' || t.work_status === 'blocked'),
+      done: allTechs.filter((t) => t.work_status === 'done'),
+      notWorking: allTechs.filter((t) => !t.work_status || t.work_status === 'not_yet'),
+    };
+  }, [data]);
+
   const sensorCards = useMemo(() => {
     if (!data?.machines || !data?.histories) return [];
     return data.machines
@@ -1136,23 +1145,51 @@ export default function App() {
 
                   {/* Technician Status */}
                   <Card title="Techniciens de Garde" icon={UserCheck}>
-                    <div className="space-y-3">
-                      {data.technicians.map((tech: Technician) => (
-                        <div key={tech.id} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
-                              <User className="w-4 h-4" />
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">Actifs maintenant</p>
+                        <div className="space-y-2">
+                          {technicianGroups.activeNow.map((tech: Technician) => (
+                            <div key={`active-${tech.id}`} className="p-3 border border-emerald-100 rounded-xl bg-emerald-50/50">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="text-xs font-black text-slate-800">{tech.name}</h4>
+                                  <p className="text-[10px] text-slate-500 font-bold uppercase">{tech.role}</p>
+                                </div>
+                                <Badge status="in_progress">{tech.work_status ?? 'in_progress'}</Badge>
+                              </div>
+                              <p className="text-[10px] text-slate-600 mt-1">
+                                {tech.current_machine ? `Machine: ${tech.current_machine}` : 'Machine: N/A'}
+                              </p>
                             </div>
-                            <div>
-                              <h4 className="text-xs font-black text-slate-800">{tech.name}</h4>
-                              <p className="text-[10px] text-slate-500 font-bold uppercase">{tech.role}</p>
-                            </div>
-                          </div>
-                          <Badge status={tech.is_available ? 'active' : 'inactive'}>
-                            {tech.is_available ? 'Libre' : 'Occupé'}
-                          </Badge>
+                          ))}
+                          {technicianGroups.activeNow.length === 0 && (
+                            <p className="text-[11px] text-slate-400 italic">Aucun technicien actif maintenant.</p>
+                          )}
                         </div>
-                      ))}
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Non actifs / terminés</p>
+                        <div className="space-y-2">
+                          {[...technicianGroups.notWorking, ...technicianGroups.done].map((tech: Technician) => (
+                            <div key={`idle-${tech.id}`} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
+                                  <User className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-black text-slate-800">{tech.name}</h4>
+                                  <p className="text-[10px] text-slate-500 font-bold uppercase">{tech.role}</p>
+                                </div>
+                              </div>
+                              <Badge status={tech.work_status === 'done' ? 'closed' : 'inactive'}>
+                                {tech.work_status === 'done' ? 'done' : 'not_yet'}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </Card>
                 </div>
@@ -1363,6 +1400,22 @@ export default function App() {
                         {tech.is_available ? 'Disponible Immédiatement' : 'En Intervention'}
                       </Badge>
                     </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut tâche</span>
+                      <Badge status={tech.work_status === 'in_progress' ? 'in_progress' : tech.work_status === 'done' ? 'closed' : 'inactive'}>
+                        {tech.work_status ?? 'not_yet'}
+                      </Badge>
+                    </div>
+                    {(tech.current_machine || tech.current_action) && (
+                      <div className="mt-3 p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                        {tech.current_machine && (
+                          <p className="text-[10px] text-slate-600 font-bold">Machine: {tech.current_machine}</p>
+                        )}
+                        {tech.current_action && (
+                          <p className="text-[10px] text-slate-500 mt-1">{tech.current_action}</p>
+                        )}
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>

@@ -24,6 +24,9 @@ export interface Technician {
   email: string;
   phone: string;
   is_available: boolean;
+  work_status?: 'in_progress' | 'done' | 'blocked' | 'not_yet';
+  current_machine?: string;
+  current_action?: string;
 }
 
 export interface Threshold {
