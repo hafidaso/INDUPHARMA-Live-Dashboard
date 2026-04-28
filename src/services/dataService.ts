@@ -51,6 +51,13 @@ export const SHEET_CONFIG = {
 async function fetchCSV<T>(url: string): Promise<T[] | null> {
   if (!url) return null;
   const seenHeaders = new Map<string, number>();
+  const isLocalhost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const requestUrl =
+    typeof window !== 'undefined' && !isLocalhost
+      ? `/api/sheet?url=${encodeURIComponent(url)}`
+      : url;
 
   const makeUniqueHeader = (rawHeader: string, index: number) => {
     const cleaned = rawHeader.replace(/^\uFEFF/, '').trim();
@@ -74,7 +81,7 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
       settle(null);
     }, 7000);
 
-    Papa.parse<T>(url, {
+    Papa.parse<T>(requestUrl, {
       download: true,
       header: true,
       transformHeader: makeUniqueHeader,
