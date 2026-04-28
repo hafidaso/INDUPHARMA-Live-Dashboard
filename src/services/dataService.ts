@@ -58,16 +58,33 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
   };
 
   return new Promise((resolve) => {
+    let settled = false;
+    const settle = (value: T[] | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    // Prevent hanging forever if a request stalls in-browser.
+    const timeout = window.setTimeout(() => {
+      console.warn("CSV fetch timeout:", url);
+      settle(null);
+    }, 7000);
+
     Papa.parse<T>(url, {
       download: true,
       header: true,
       transformHeader: makeUniqueHeader,
       skipEmptyLines: true,
       dynamicTyping: true,
-      complete: (results) => resolve(results.data),
+      complete: (results) => {
+        window.clearTimeout(timeout);
+        settle(results.data);
+      },
       error: (err) => {
+        window.clearTimeout(timeout);
         console.warn("CSV fetch failed:", url, err);
-        resolve(null);
+        settle(null);
       },
     });
   });

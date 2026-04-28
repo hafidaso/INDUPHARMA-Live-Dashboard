@@ -139,6 +139,11 @@ const SafeChartContainer: React.FC<{ className: string; children: React.ReactNod
     const element = hostRef.current;
     if (!element) return;
 
+    if (typeof ResizeObserver === 'undefined') {
+      setReady(true);
+      return;
+    }
+
     const checkSize = () => {
       const rect = element.getBoundingClientRect();
       setReady(rect.width > 0 && rect.height > 0);
