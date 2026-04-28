@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Indupharma Live Dashboard - Production Version
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Activity, 
