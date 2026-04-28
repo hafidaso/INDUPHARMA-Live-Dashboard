@@ -26,17 +26,22 @@ import {
 const SHEET_BASE =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vRL-A-qoJjc6Rca7L5_tCsG3bh0-_X1OSSIIedmrXp5s7O67MSSJkX7xX6IVVQ1DjmxPaxumrobk1Yb/pub";
 
+const SHEET_DOC_ID = "1qWn0p9lrOjz_zssADNY6N0HtJbkFMCHTmE-PKjMRk4k";
+const buildSheetCsvUrl = (docId: string, gid: string) =>
+  `https://docs.google.com/spreadsheets/d/${docId}/gviz/tq?tqx=out:csv&gid=${gid}`;
+
 export const SHEET_CONFIG = {
   urls: {
     machines:           `${SHEET_BASE}?output=csv`,           // first sheet tab (live)
-    technicians:        ``,  // paste: `${SHEET_BASE}?gid=YOUR_GID&output=csv`
-    thresholds:         ``,
-    sensorReadings:     ``,
-    incidents:          ``,
-    maintenanceActions: ``,
-    kpiLogs:            ``,
+    technicians:        buildSheetCsvUrl(SHEET_DOC_ID, "1981152723"),
+    thresholds:         buildSheetCsvUrl(SHEET_DOC_ID, "945982141"),
+    sensorReadings:     buildSheetCsvUrl(SHEET_DOC_ID, "1876456620"),
+    incidents:          buildSheetCsvUrl(SHEET_DOC_ID, "2117617908"),
+    maintenanceActions: buildSheetCsvUrl(SHEET_DOC_ID, "597643256"),
+    kpiLogs:            buildSheetCsvUrl(SHEET_DOC_ID, "1582554922"),
   },
-  refreshIntervalMs: 10000,
+  // Poll every 3 seconds for near-real-time dashboard updates.
+  refreshIntervalMs: 3000,
 };
 
 // ---------------------------------------------------------------------------
@@ -44,8 +49,11 @@ export const SHEET_CONFIG = {
 // ---------------------------------------------------------------------------
 async function fetchCSV<T>(url: string): Promise<T[] | null> {
   if (!url) return null;
+  // Cache buster so each poll reads the latest published CSV.
+  const separator = url.includes('?') ? '&' : '?';
+  const freshUrl = `${url}${separator}_ts=${Date.now()}`;
   return new Promise((resolve, reject) => {
-    Papa.parse<T>(url, {
+    Papa.parse<T>(freshUrl, {
       download: true,
       header: true,
       skipEmptyLines: true,
