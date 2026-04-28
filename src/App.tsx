@@ -250,6 +250,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
+  const [showWebhookAlert, setShowWebhookAlert] = useState(false);
   const [incidentProgress, setIncidentProgress] = useState<Record<string, {
     status: ActionProgressStatus;
     technician: string;
@@ -499,6 +500,15 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!loading && data && data.isConnected === false) {
+      setShowWebhookAlert(true);
+    }
+    if (data?.isConnected) {
+      setShowWebhookAlert(false);
+    }
+  }, [data, loading]);
+
   const selectedMachine = useMemo(() => {
     if (!data || !selectedMachineId) return null;
     return data.machines.find((m: any) => m.id === selectedMachineId);
@@ -583,6 +593,44 @@ export default function App() {
     setLoginError(null);
   };
 
+  const webhookAlertPopup = showWebhookAlert ? (
+    <div className="fixed inset-0 z-[120] bg-slate-900/45 backdrop-blur-sm flex items-center justify-center px-4">
+      <div className="w-full max-w-lg bg-white border border-red-200 rounded-2xl shadow-2xl p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-black text-slate-900">Webhook indisponible</h3>
+            <p className="text-sm text-slate-600 mt-1">
+              Les donnees live ne sont pas recues. Merci de verifier rapidement le webhook et la connectivite API.
+            </p>
+            <p className="text-xs text-slate-500 mt-2 font-bold">
+              Action recommandee: controler le endpoint production-status et relancer le flux.
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            onClick={() => setShowWebhookAlert(false)}
+            className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold"
+          >
+            Fermer
+          </button>
+          <button
+            onClick={() => {
+              setShowWebhookAlert(false);
+              handleRefresh();
+            }}
+            className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold"
+          >
+            Reessayer maintenant
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (!authUser) return (
     <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center px-6">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
@@ -658,6 +706,7 @@ export default function App() {
     const openAlertCount = technicianAlerts.filter((a: any) => a.actionStatus !== 'done').length;
     return (
       <div className="min-h-screen bg-[#F7F4EE] text-slate-800">
+        {webhookAlertPopup}
         <header className="bg-white border-b border-slate-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -743,6 +792,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F7F4EE] text-slate-800 font-sans selection:bg-blue-600/10">
+      {webhookAlertPopup}
       
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-4">
