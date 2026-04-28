@@ -260,6 +260,200 @@ export default function App() {
   const [activeCriticalAlert, setActiveCriticalAlert] = useState<Incident | null>(null);
   const [notifiedIncidentIds, setNotifiedIncidentIds] = useState<Set<string>>(new Set());
 
+  const selectedMachine = useMemo(() => {
+    if (!data || !selectedMachineId) return null;
+    return data.machines.find((m: any) => m.id === selectedMachineId);
+  }, [data, selectedMachineId]);
+
+  const updateIncidentProgress = (incidentId: string, status: ActionProgressStatus, technician: string) => {
+    setIncidentProgress((prev) => ({
+      ...prev,
+      [incidentId]: {
+        status,
+        technician,
+        updated_at: new Date().toLocaleString('fr-FR'),
+      },
+    }));
+  };
+
+  const incidentsWithWorkflow: Incident[] = useMemo(() => {
+    if (!data?.incidents) return [];
+    return data.incidents.map((incident: Incident) => {
+      const progress = incidentProgress[incident.id];
+      const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
+      return { ...incident, status: mappedStatus ?? incident.status };
+    });
+  }, [data, incidentProgress]);
+
+  const technicianAlerts = useMemo(() => {
+    return incidentsWithWorkflow.map((incident: Incident) => {
+      const progress = incidentProgress[incident.id];
+      return {
+        ...incident,
+        actionStatus: progress?.status ?? ('not_yet' as ActionProgressStatus),
+        assignedTechnician: progress?.technician ?? 'Unassigned',
+        updatedAt: progress?.updated_at ?? '-',
+      };
+    }).filter((incident: any) =>
+      incident.status === 'open' || incident.status === 'in_progress' || incident.status === 'escalated'
+    );
+  }, [incidentsWithWorkflow, incidentProgress]);
+
+  const dashboardKpiSummary: DashboardKpiSummary[] = useMemo(() => {
+    if (!data) return [];
+    const machines = data.machines ?? [];
+    const activeMachines = machines.filter((m: Machine) => m.status === 'active').length;
+    const totalMachines = machines.length;
+    const openIncidents = incidentsWithWorkflow.filter(
+      (i) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated'
+    );
+    const criticalAlerts = openIncidents.filter((i) => i.severity === 'critical' || i.severity === 'high').length;
+    const availableTechs = (data.technicians ?? []).filter((t: Technician) => !!t.is_available).length;
+    const availabilityRate = totalMachines > 0 ? Math.round((activeMachines / totalMachines) * 100) : 0;
+    const mttr =
+      Math.round(((data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mttr_minutes, 0)) / ((data.kpiLogs ?? []).length || 1));
+    const downtime = (data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0);
+
+    return [
+      {
+        metric: 'Machines actives',
+        value: String(activeMachines),
+        unit: '/',
+        status: availabilityRate >= 80 ? 'normal' : 'warning',
+        note: `${totalMachines} machines total`,
+      },
+      {
+        metric: 'Incidents ouverts',
+        value: String(openIncidents.length),
+        unit: '',
+        status: openIncidents.length > 0 ? 'critical' : 'normal',
+        note: 'Live incidents after technician workflow',
+      },
+      {
+        metric: 'Alertes critiques',
+        value: String(criticalAlerts),
+        unit: '',
+        status: criticalAlerts > 0 ? 'critical' : 'normal',
+        note: 'Critical/high incidents currently open',
+      },
+      {
+        metric: 'MTTR moyen',
+        value: String(mttr),
+        unit: 'min',
+        status: 'normal',
+        note: 'Calculated from API-derived KPI logs',
+      },
+      {
+        metric: 'Downtime total',
+        value: String(downtime),
+        unit: 'min',
+        status: 'warning',
+        note: 'Derived from etat_global',
+      },
+      {
+        metric: 'Techniciens dispo.',
+        value: String(availableTechs),
+        unit: '',
+        status: availableTechs > 0 ? 'normal' : 'critical',
+        note: 'Live technician roster availability',
+      },
+    ];
+  }, [data, incidentsWithWorkflow]);
+
+  const siteRecommendations = useMemo(() => {
+    const criticalIncidents = incidentsWithWorkflow.filter((i: any) => i.severity === 'critical' || i.severity === 'high');
+    return criticalIncidents.map((inc: any) => {
+      let rec = "Inspection immédiate requise.";
+      let owner = "Maintenance";
+
+      if (inc.machine_name?.includes('Autoclave') && inc.description.includes('Surpression')) {
+        rec = "Surpression détectée. Vérifier la valve de sécurité, isoler l’équipement et valider QA avant reprise.";
+        owner = "Qualité / Maintenance";
+      } else if (inc.machine_name?.includes('Chambre Froide')) {
+        rec = "Température hors plage basse. Contrôler le thermostat, vérifier les lots sensibles et maintenir la quarantaine jusqu’à validation QA.";
+        owner = "Qualité";
+      } else if (inc.description.includes('Vibration')) {
+        rec = "Vibration anormale. Planifier inspection roulements et surveillance renforcée.";
+        owner = "Maintenance";
+      }
+
+      return {
+        machine: inc.machine_name,
+        severity: inc.severity,
+        recommendation: rec,
+        owner
+      };
+    });
+  }, [incidentsWithWorkflow]);
+
+  const technicianGroups = useMemo(() => {
+    const allTechs: Technician[] = data?.technicians ?? [];
+    return {
+      activeNow: allTechs.filter((t) => t.work_status === 'in_progress' || t.work_status === 'blocked'),
+      done: allTechs.filter((t) => t.work_status === 'done'),
+      notWorking: allTechs.filter((t) => !t.work_status || t.work_status === 'not_yet'),
+    };
+  }, [data]);
+
+  const sensorCards = useMemo(() => {
+    if (!data?.machines || !data?.histories) return [];
+    return data.machines
+      .map((m: Machine, index: number) => {
+        const history = data.histories[m.id] ?? [];
+        const latest = history.length > 0 ? history[history.length - 1] : null;
+        const reading = (data.sensorReadings ?? []).find((r: SensorReading) => r.machine_id === m.id);
+        let unit = latest?.unit ?? '';
+        if (!unit) {
+          if (reading?.pressure != null) unit = 'bar';
+          else if (reading?.temperature != null) unit = '°C';
+          else if (reading?.vibration != null) unit = 'g';
+          else if (reading?.infrared != null) unit = '°C';
+        }
+        return {
+          id: m.id,
+          name: m.name,
+          history,
+          latestValue: latest?.value != null ? Number(latest.value).toFixed(2) : 'N/A',
+          latestTime: latest?.timestamp ? new Date(latest.timestamp).toLocaleTimeString() : '--:--:--',
+          unit,
+          chartType: index % 2 === 0 ? 'line' : 'area',
+          color: ['#2563eb', '#f59e0b', '#ef4444', '#10b981'][index % 4],
+        };
+      })
+      .filter((c: any) => Array.isArray(c.history) && c.history.length > 0);
+  }, [data]);
+
+  const machineViewWithWorkflow = useMemo(() => {
+    if (!data?.machineView) return [];
+    return data.machineView.map((mv: DashboardMachineView) => {
+      const incident = incidentsWithWorkflow.find(i => i.machine_id === mv.machine_id);
+      const isClosed = incident && (incident.status === 'closed' || incident.status === 'resolved');
+      return {
+        ...mv,
+        active_incident: isClosed ? undefined : mv.active_incident,
+        incident_status: incident ? incident.status : mv.incident_status
+      };
+    });
+  }, [data?.machineView, incidentsWithWorkflow]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = DEMO_USERS.find((u) => u.email === email.trim() && u.password === password);
+    if (!user) {
+      setLoginError('Identifiants invalides.');
+      return;
+    }
+    setAuthUser(user);
+    setLoginError(null);
+  };
+
+  const handleLogout = () => {
+    setAuthUser(null);
+    setEmail('');
+    setPassword('');
+    setLoginError(null);
+  };
+
   const handleRefresh = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -627,199 +821,6 @@ export default function App() {
     }
   }, [incidentProgress, INCIDENT_PROGRESS_STORAGE_KEY]);
 
-  const selectedMachine = useMemo(() => {
-    if (!data || !selectedMachineId) return null;
-    return data.machines.find((m: any) => m.id === selectedMachineId);
-  }, [data, selectedMachineId]);
-
-  const updateIncidentProgress = (incidentId: string, status: ActionProgressStatus, technician: string) => {
-    setIncidentProgress((prev) => ({
-      ...prev,
-      [incidentId]: {
-        status,
-        technician,
-        updated_at: new Date().toLocaleString('fr-FR'),
-      },
-    }));
-  };
-
-  const incidentsWithWorkflow: Incident[] = useMemo(() => {
-    if (!data?.incidents) return [];
-    return data.incidents.map((incident: Incident) => {
-      const progress = incidentProgress[incident.id];
-      const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
-      return { ...incident, status: mappedStatus ?? incident.status };
-    });
-  }, [data, incidentProgress]);
-
-  const technicianAlerts = useMemo(() => {
-    return incidentsWithWorkflow.map((incident: Incident) => {
-      const progress = incidentProgress[incident.id];
-      return {
-        ...incident,
-        actionStatus: progress?.status ?? ('not_yet' as ActionProgressStatus),
-        assignedTechnician: progress?.technician ?? 'Unassigned',
-        updatedAt: progress?.updated_at ?? '-',
-      };
-    }).filter((incident: any) =>
-      incident.status === 'open' || incident.status === 'in_progress' || incident.status === 'escalated'
-    );
-  }, [incidentsWithWorkflow, incidentProgress]);
-
-  const dashboardKpiSummary: DashboardKpiSummary[] = useMemo(() => {
-    if (!data) return [];
-    const machines = data.machines ?? [];
-    const activeMachines = machines.filter((m: Machine) => m.status === 'active').length;
-    const totalMachines = machines.length;
-    const openIncidents = incidentsWithWorkflow.filter(
-      (i) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated'
-    );
-    const criticalAlerts = openIncidents.filter((i) => i.severity === 'critical' || i.severity === 'high').length;
-    const availableTechs = (data.technicians ?? []).filter((t: Technician) => !!t.is_available).length;
-    const availabilityRate = totalMachines > 0 ? Math.round((activeMachines / totalMachines) * 100) : 0;
-    const mttr =
-      Math.round(((data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mttr_minutes, 0)) / ((data.kpiLogs ?? []).length || 1));
-    const downtime = (data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0);
-
-    return [
-      {
-        metric: 'Machines actives',
-        value: String(activeMachines),
-        unit: '/',
-        status: availabilityRate >= 80 ? 'normal' : 'warning',
-        note: `${totalMachines} machines total`,
-      },
-      {
-        metric: 'Incidents ouverts',
-        value: String(openIncidents.length),
-        unit: '',
-        status: openIncidents.length > 0 ? 'critical' : 'normal',
-        note: 'Live incidents after technician workflow',
-      },
-      {
-        metric: 'Alertes critiques',
-        value: String(criticalAlerts),
-        unit: '',
-        status: criticalAlerts > 0 ? 'critical' : 'normal',
-        note: 'Critical/high incidents currently open',
-      },
-      {
-        metric: 'MTTR moyen',
-        value: String(mttr),
-        unit: 'min',
-        status: 'normal',
-        note: 'Calculated from API-derived KPI logs',
-      },
-      {
-        metric: 'Downtime total',
-        value: String(downtime),
-        unit: 'min',
-        status: 'warning',
-        note: 'Derived from etat_global',
-      },
-      {
-        metric: 'Techniciens dispo.',
-        value: String(availableTechs),
-        unit: '',
-        status: availableTechs > 0 ? 'normal' : 'critical',
-        note: 'Live technician roster availability',
-      },
-    ];
-  }, [data, incidentsWithWorkflow]);
-
-  const siteRecommendations = useMemo(() => {
-    const criticalIncidents = incidentsWithWorkflow.filter((i: any) => i.severity === 'critical' || i.severity === 'high');
-    return criticalIncidents.map((inc: any) => {
-      let rec = "Inspection immédiate requise.";
-      let owner = "Maintenance";
-
-      if (inc.machine_name?.includes('Autoclave') && inc.description.includes('Surpression')) {
-        rec = "Surpression détectée. Vérifier la valve de sécurité, isoler l’équipement et valider QA avant reprise.";
-        owner = "Qualité / Maintenance";
-      } else if (inc.machine_name?.includes('Chambre Froide')) {
-        rec = "Température hors plage basse. Contrôler le thermostat, vérifier les lots sensibles et maintenir la quarantaine jusqu’à validation QA.";
-        owner = "Qualité";
-      } else if (inc.description.includes('Vibration')) {
-        rec = "Vibration anormale. Planifier inspection roulements et surveillance renforcée.";
-        owner = "Maintenance";
-      }
-
-      return {
-        machine: inc.machine_name,
-        severity: inc.severity,
-        recommendation: rec,
-        owner
-      };
-    });
-  }, [incidentsWithWorkflow]);
-
-  const technicianGroups = useMemo(() => {
-    const allTechs: Technician[] = data?.technicians ?? [];
-    return {
-      activeNow: allTechs.filter((t) => t.work_status === 'in_progress' || t.work_status === 'blocked'),
-      done: allTechs.filter((t) => t.work_status === 'done'),
-      notWorking: allTechs.filter((t) => !t.work_status || t.work_status === 'not_yet'),
-    };
-  }, [data]);
-
-  const sensorCards = useMemo(() => {
-    if (!data?.machines || !data?.histories) return [];
-    return data.machines
-      .map((m: Machine, index: number) => {
-        const history = data.histories[m.id] ?? [];
-        const latest = history.length > 0 ? history[history.length - 1] : null;
-        const reading = (data.sensorReadings ?? []).find((r: SensorReading) => r.machine_id === m.id);
-        let unit = latest?.unit ?? '';
-        if (!unit) {
-          if (reading?.pressure != null) unit = 'bar';
-          else if (reading?.temperature != null) unit = '°C';
-          else if (reading?.vibration != null) unit = 'g';
-          else if (reading?.infrared != null) unit = '°C';
-        }
-        return {
-          id: m.id,
-          name: m.name,
-          history,
-          latestValue: latest?.value != null ? Number(latest.value).toFixed(2) : 'N/A',
-          latestTime: latest?.timestamp ? new Date(latest.timestamp).toLocaleTimeString() : '--:--:--',
-          unit,
-          chartType: index % 2 === 0 ? 'line' : 'area',
-          color: ['#2563eb', '#f59e0b', '#ef4444', '#10b981'][index % 4],
-        };
-      })
-      .filter((c: any) => Array.isArray(c.history) && c.history.length > 0);
-  }, [data]);
-
-  const machineViewWithWorkflow = useMemo(() => {
-    if (!data?.machineView) return [];
-    return data.machineView.map((mv: DashboardMachineView) => {
-      const incident = incidentsWithWorkflow.find(i => i.machine_id === mv.machine_id);
-      const isClosed = incident && (incident.status === 'closed' || incident.status === 'resolved');
-      return {
-        ...mv,
-        active_incident: isClosed ? undefined : mv.active_incident,
-        incident_status: incident ? incident.status : mv.incident_status
-      };
-    });
-  }, [data?.machineView, incidentsWithWorkflow]);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const user = DEMO_USERS.find((u) => u.email === email.trim() && u.password === password);
-    if (!user) {
-      setLoginError('Identifiants invalides.');
-      return;
-    }
-    setAuthUser(user);
-    setLoginError(null);
-  };
-
-  const handleLogout = () => {
-    setAuthUser(null);
-    setEmail('');
-    setPassword('');
-    setLoginError(null);
-  };
 
   const webhookAlertPopup = showWebhookAlert ? (
     <div className="fixed inset-0 z-[120] bg-slate-900/45 backdrop-blur-sm flex items-center justify-center px-4">
