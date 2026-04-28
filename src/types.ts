@@ -10,11 +10,14 @@ export type IncidentStatus = 'open' | 'in_progress' | 'escalated' | 'closed';
 
 export interface Machine {
   id: string;
+  code_machine?: string;
   name: string;
   type: string;
   location: string;
   status: MachineStatus;
   created_at: string;
+  techniciens_count?: number;
+  techniciens_active?: number;
 }
 
 export interface Technician {
@@ -92,6 +95,7 @@ export interface KpiLog {
 
 export interface DashboardMachineView {
   machine_id: string;
+  code_machine?: string;
   machine_name: string;
   type: string;
   location: string;
@@ -102,6 +106,8 @@ export interface DashboardMachineView {
   latest_value_summary: string;
   active_incident?: string;
   incident_status?: IncidentStatus;
+  techniciens_count?: number;
+  techniciens_active?: number;
 }
 
 export interface DashboardKpiSummary {

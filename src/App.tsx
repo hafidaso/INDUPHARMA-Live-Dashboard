@@ -1208,9 +1208,16 @@ export default function App() {
                       >
                         <div className="flex justify-between items-start mb-4">
                           <div>
-                            <h3 className="text-slate-900 font-black text-sm uppercase tracking-tight group-hover:text-blue-600 transition-colors">
-                              {mv.machine_name}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-slate-900 font-black text-sm uppercase tracking-tight group-hover:text-blue-600 transition-colors">
+                                {mv.machine_name}
+                              </h3>
+                              {mv.code_machine && (
+                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200 uppercase">
+                                  {mv.code_machine}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-[10px] text-slate-500 font-bold uppercase">{mv.type}</span>
                               <span className="text-slate-300 text-[10px]">•</span>
@@ -1219,6 +1226,15 @@ export default function App() {
                           </div>
                           <Badge status={mv.machine_status}>{mv.machine_status}</Badge>
                         </div>
+
+                        {mv.techniciens_active && mv.techniciens_active > 0 ? (
+                           <div className="mb-4 flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg">
+                              <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
+                              <span className="text-[10px] font-black text-indigo-700 uppercase">
+                                {mv.techniciens_active} Technicien(s) Actif(s)
+                              </span>
+                           </div>
+                        ) : null}
 
                         <div className="p-3 bg-slate-50 rounded-lg space-y-3 border border-slate-100">
                           <div className="flex items-center justify-between">
@@ -1622,9 +1638,26 @@ export default function App() {
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
                         <Badge status={m.status}>{m.status}</Badge>
                       </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Techs Affectés</span>
+                        <span className="text-xs font-bold text-slate-700">{m.techniciens_count || 0}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Techs Actifs</span>
+                        <span className={cn("text-xs font-black", (m.techniciens_active ?? 0) > 0 ? "text-indigo-600" : "text-slate-700")}>
+                           {m.techniciens_active || 0}
+                        </span>
+                      </div>
                       <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</span>
-                         <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">{m.id}</span>
+                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Code Machine / ID</span>
+                         <div className="flex items-center gap-2">
+                           {m.code_machine && (
+                              <span className="text-[10px] font-mono font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 uppercase">
+                                {m.code_machine}
+                              </span>
+                           )}
+                           <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">{m.id}</span>
+                         </div>
                       </div>
                       <button 
                         onClick={() => setSelectedMachineId(m.id)}

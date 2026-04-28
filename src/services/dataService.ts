@@ -59,6 +59,8 @@ type ProductionEquipement = {
   etat_global: string;
   mesures_recentes?: ProductionMeasure[];
   techniciens?: ProductionTechnicien[];
+  techniciens_count?: number;
+  techniciens_active?: number;
 };
 
 type ProductionResponse = {
@@ -108,6 +110,8 @@ function normalizeProductionResponse(raw: any): ProductionResponse {
     etat_global: String(e?.etat_global ?? e?.state ?? 'ok'),
     mesures_recentes: Array.isArray(e?.mesures_recentes) ? e.mesures_recentes : [],
     techniciens: Array.isArray(e?.techniciens) ? e.techniciens : [],
+    techniciens_count: Number(e?.techniciens_count ?? 0),
+    techniciens_active: Number(e?.techniciens_active ?? 0),
   }));
 
   return {
@@ -228,11 +232,14 @@ export async function fetchSheetData() {
     const payload = await fetchProductionStatus();
     const machines: Machine[] = payload.equipements.map((e) => ({
       id: e.equipement_id,
+      code_machine: e.code_machine ?? undefined,
       name: e.nom,
       type: e.type_equipement,
       location: e.zone_production,
       status: toMachineStatus(e.statut),
       created_at: payload.meta.generated_at,
+      techniciens_count: e.techniciens_count,
+      techniciens_active: e.techniciens_active,
     }));
 
     const techniciansRaw: Technician[] = payload.equipements
@@ -321,6 +328,7 @@ export async function fetchSheetData() {
       const summary = resolveMeasureSummary(e.mesures_recentes);
       return {
         machine_id: e.equipement_id,
+        code_machine: e.code_machine ?? undefined,
         machine_name: e.nom,
         type: e.type_equipement,
         location: e.zone_production,
@@ -331,6 +339,8 @@ export async function fetchSheetData() {
         latest_value_summary: summary.latestValueSummary,
         active_incident: e.nb_alertes_ouvertes > 0 ? `${e.nb_alertes_ouvertes} alert(s)` : undefined,
         incident_status: e.nb_alertes_ouvertes > 0 ? 'open' : undefined,
+        techniciens_count: e.techniciens_count,
+        techniciens_active: e.techniciens_active,
       };
     });
 
