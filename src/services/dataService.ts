@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import Papa from 'papaparse';
 import {
   Machine,
   Technician,
@@ -13,110 +12,134 @@ import {
   MaintenanceAction,
   KpiLog,
   DashboardMachineView,
-  DashboardKpiSummary
+  DashboardKpiSummary,
+  MachineStatus,
+  ReadingStatus,
+  Severity
 } from '../types';
 
-// ---------------------------------------------------------------------------
-// Sheet configuration
-// Base URL = the published Google Sheets CSV base.
-// For each extra sheet tab, add its GID from the sheet URL bar:
-//   ?gid=XXXXXXXXX  (visible when you click the tab in the browser URL)
-// Leave blank ("") to keep using mock data for that entity.
-// ---------------------------------------------------------------------------
-const SHEET_BASE =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vRL-A-qoJjc6Rca7L5_tCsG3bh0-_X1OSSIIedmrXp5s7O67MSSJkX7xX6IVVQ1DjmxPaxumrobk1Yb/pub";
-const SOURCE_DOC_ID = "1qWn0p9lrOjz_zssADNY6N0HtJbkFMCHTmE-PKjMRk4k";
-const buildDocCsvUrl = (gid: string) =>
-  `https://docs.google.com/spreadsheets/d/${SOURCE_DOC_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+const PRODUCTION_STATUS_URL =
+  "https://fusion-ai-api.medifus.dev/webhooks/webhook-vug2y2v8zf6cu492khq7g3o0/api/production/status";
 
 export const SHEET_CONFIG = {
-  urls: {
-    machines:           `${SHEET_BASE}?gid=1981152723&single=true&output=csv`,
-    technicians:        `${SHEET_BASE}?gid=2117617908&single=true&output=csv`,
-    thresholds:         `${SHEET_BASE}?gid=945982141&single=true&output=csv`,
-    sensorReadings:     `${SHEET_BASE}?gid=1876456620&single=true&output=csv`,
-    incidents:          `${SHEET_BASE}?gid=597643256&single=true&output=csv`,
-    maintenanceActions: `${SHEET_BASE}?gid=1582554922&single=true&output=csv`,
-    kpiLogs:            `${SHEET_BASE}?gid=1784914877&single=true&output=csv`,
-    machineView:        `${SHEET_BASE}?gid=1548780963&single=true&output=csv`,
-    kpiSummary:         `${SHEET_BASE}?gid=67576934&single=true&output=csv`,
-  },
-  // Poll every 3 seconds for near-real-time dashboard updates.
+  endpointUrl: PRODUCTION_STATUS_URL,
   refreshIntervalMs: 3000,
 };
 
-// ---------------------------------------------------------------------------
-// Generic CSV fetcher
-// ---------------------------------------------------------------------------
-async function fetchCSV<T>(url: string): Promise<T[] | null> {
-  if (!url) return null;
-  const seenHeaders = new Map<string, number>();
+type ProductionMeasure = {
+  type_mesure?: string;
+  valeur?: number;
+  unite?: string;
+  alerte_flag?: boolean;
+  timestamp?: string;
+};
+
+type ProductionEquipement = {
+  equipement_id: string;
+  code_machine?: string | null;
+  nom: string;
+  zone_production: string;
+  type_equipement: string;
+  criticite_gmp?: string | null;
+  statut: string;
+  nb_alertes_ouvertes: number;
+  etat_global: string;
+  mesures_recentes?: ProductionMeasure[];
+};
+
+type ProductionResponse = {
+  meta: {
+    generated_at: string;
+    nb_equipements: number;
+    equipements_ok: number;
+    equipements_alerte: number;
+    nb_alertes_total: number;
+  };
+  equipements: ProductionEquipement[];
+};
+
+function toMachineStatus(status: string | undefined): MachineStatus {
+  if (!status) return 'inactive';
+  const s = status.toLowerCase();
+  if (s === 'active') return 'active';
+  if (s === 'maintenance') return 'maintenance';
+  if (s === 'en_panne' || s === 'down') return 'en_panne';
+  return 'inactive';
+}
+
+function toIncidentSeverity(value: string | undefined): Severity {
+  const v = String(value ?? '').toLowerCase();
+  if (v.includes('critical') || v.includes('critique')) return 'critical';
+  if (v.includes('high') || v.includes('haute')) return 'high';
+  if (v.includes('medium') || v.includes('moy')) return 'medium';
+  return 'low';
+}
+
+function resolveMeasureSummary(measures: ProductionMeasure[] | undefined) {
+  if (!measures || measures.length === 0) {
+    return {
+      latestDevice: 'N/A',
+      latestStatus: 'normal' as ReadingStatus,
+      latestSeverity: 'low' as Severity,
+      latestValueSummary: 'No measure',
+      reading: null as SensorReading | null,
+    };
+  }
+
+  const latest = measures[0];
+  const type = latest.type_mesure ?? 'measure';
+  const value = latest.valeur ?? 0;
+  const unit = latest.unite ?? '';
+  const flagged = !!latest.alerte_flag;
+
+  const reading: SensorReading = {
+    id: `R-${latest.timestamp ?? Date.now()}`,
+    machine_id: '',
+    device_id: 'API',
+    status: flagged ? 'warning' : 'normal',
+    severity: flagged ? 'medium' : 'low',
+    timestamp: latest.timestamp ?? new Date().toISOString(),
+  };
+
+  if (type.includes('temp')) reading.temperature = value;
+  else if (type.includes('press')) reading.pressure = value;
+  else if (type.includes('vib')) reading.vibration = value;
+  else if (type.includes('infra')) reading.infrared = value;
+
+  return {
+    latestDevice: 'API',
+    latestStatus: flagged ? ('warning' as ReadingStatus) : ('normal' as ReadingStatus),
+    latestSeverity: flagged ? ('medium' as Severity) : ('low' as Severity),
+    latestValueSummary: `${type}: ${value} ${unit}`.trim(),
+    reading,
+  };
+}
+
+async function fetchProductionStatus(): Promise<ProductionResponse> {
   const isLocalhost =
     typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  const requestUrl =
+  const url =
     typeof window !== 'undefined' && !isLocalhost
-      ? `/api/sheet?url=${encodeURIComponent(url)}`
-      : url;
+      ? '/api/production-status'
+      : SHEET_CONFIG.endpointUrl;
 
-  const makeUniqueHeader = (rawHeader: string, index: number) => {
-    const cleaned = rawHeader.replace(/^\uFEFF/, '').trim();
-    const base = cleaned || `column_${index}`;
-    const count = seenHeaders.get(base) ?? 0;
-    seenHeaders.set(base, count + 1);
-    return count === 0 ? base : `${base}_${count}`;
-  };
-
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = (value: T[] | null) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-
-    // Prevent hanging forever if a request stalls in-browser.
-    const timeout = window.setTimeout(() => {
-      console.warn("CSV fetch timeout:", url);
-      settle(null);
-    }, 7000);
-
-    Papa.parse<T>(requestUrl, {
-      download: true,
-      header: true,
-      transformHeader: makeUniqueHeader,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      complete: (results) => {
-        window.clearTimeout(timeout);
-        const cleaned = (results.data as any[]).filter((row) =>
-          row && typeof row === 'object' && Object.values(row).some((v) => String(v ?? '').trim() !== '')
-        ) as T[];
-        settle(cleaned);
-      },
-      error: (err) => {
-        window.clearTimeout(timeout);
-        console.warn("CSV fetch failed:", url, err);
-        settle(null);
-      },
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 9000);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
     });
-  });
-}
-
-async function fetchCSVFromSources<T>(urls: string[]): Promise<T[] | null> {
-  for (const sourceUrl of urls) {
-    if (!sourceUrl) continue;
-    const rows = await fetchCSV<T>(sourceUrl);
-    if (rows && rows.length > 0) return rows;
+    if (!res.ok) {
+      throw new Error(`Production endpoint failed: ${res.status}`);
+    }
+    return (await res.json()) as ProductionResponse;
+  } finally {
+    window.clearTimeout(timeout);
   }
-  return null;
-}
-
-function hasExpectedColumns(rows: any[] | null, requiredColumns: string[]): boolean {
-  if (!rows || rows.length === 0) return false;
-  const sample = rows[0];
-  if (!sample || typeof sample !== 'object') return false;
-  return requiredColumns.every((col) => Object.prototype.hasOwnProperty.call(sample, col));
 }
 
 // ---------------------------------------------------------------------------
@@ -131,9 +154,10 @@ const machinesMock: Machine[] = [
 ];
 
 const techniciansMock: Technician[] = [
-  { id: 'T01', name: 'Jean Dupont',    role: 'Maintenance Sénior',   email: 'j.dupont@pharma.com',   phone: '0612345678', is_available: true },
-  { id: 'T02', name: 'Marie Lefebvre', role: 'Technicienne GMP',      email: 'm.lefebvre@pharma.com', phone: '0687654321', is_available: false },
-  { id: 'T03', name: 'Ahmed Saidi',    role: 'Expert Instrumentation',email: 'a.saidi@pharma.com',    phone: '0655443322', is_available: true },
+  { id: 'c2ffbc99-9c0b-4ef8-bb6d-6bb9bd380a33', name: 'Technicien Maintenance A', role: 'technicien_maintenance', email: 'tech.a@indupharma.local', phone: '+212600000001', is_available: true },
+  { id: 'f5ffbc99-9c0b-4ef8-bb6d-6bb9bd380a66', name: 'Responsable Qualité', role: 'responsable_qualite', email: 'qa@indupharma.local', phone: '+212600000002', is_available: true },
+  { id: 'f6ffbc99-9c0b-4ef8-bb6d-6bb9bd380a77', name: 'Technicien Maintenance B', role: 'technicien_maintenance', email: 'tech.b@indupharma.local', phone: '+212600000003', is_available: true },
+  { id: 'f7ffbc99-9c0b-4ef8-bb6d-6bb9bd380a88', name: 'Responsable Production', role: 'responsable_production', email: 'prod@indupharma.local', phone: '+212600000004', is_available: true },
 ];
 
 const thresholdsMock: Threshold[] = [
@@ -234,113 +258,113 @@ const generateHistory = (machineId: string, count: number, base: number, varianc
   }));
 
 // ---------------------------------------------------------------------------
-// Public fetchers
-// ---------------------------------------------------------------------------
-export async function fetchMachines(): Promise<Machine[]> {
-  const rows = await fetchCSV<any>(SHEET_CONFIG.urls.machines);
-  if (hasExpectedColumns(rows, ['id', 'name', 'type', 'location', 'status', 'created_at'])) {
-    return rows as Machine[];
-  }
-  return machinesMock;
-}
-
-export async function fetchTechnicians(): Promise<Technician[]> {
-  const rows = await fetchCSVFromSources<any>([
-    SHEET_CONFIG.urls.technicians,
-    buildDocCsvUrl("2117617908"),
-  ]);
-  if (hasExpectedColumns(rows, ['id', 'name', 'role', 'email', 'phone', 'is_available'])) {
-    return rows.map((r: any) => ({
-      ...r,
-      is_available: r.is_available === true || r.is_available === 'true' || r.is_available === 1,
-    })) as Technician[];
-  }
-  return techniciansMock;
-}
-
-export async function fetchThresholds(): Promise<Threshold[]> {
-  const rows = await fetchCSV<any>(SHEET_CONFIG.urls.thresholds);
-  if (hasExpectedColumns(rows, ['id', 'machine_id', 'sensor_type', 'min_value', 'max_value', 'critical_value', 'unit'])) {
-    return rows as Threshold[];
-  }
-  return thresholdsMock;
-}
-
-export async function fetchSensorReadings(): Promise<SensorReading[]> {
-  const rows = await fetchCSV<any>(SHEET_CONFIG.urls.sensorReadings);
-  if (hasExpectedColumns(rows, ['id', 'machine_id', 'device_id', 'status', 'severity', 'timestamp'])) {
-    return rows as SensorReading[];
-  }
-  return sensorReadingsMock;
-}
-
-export async function fetchIncidents(): Promise<Incident[]> {
-  const rows = await fetchCSV<any>(SHEET_CONFIG.urls.incidents);
-  if (hasExpectedColumns(rows, ['id', 'machine_id', 'detected_at', 'severity', 'description', 'status', 'created_by'])) {
-    return rows as Incident[];
-  }
-  return incidentsMock;
-}
-
-export async function fetchMaintenanceActions(): Promise<MaintenanceAction[]> {
-  const rows = await fetchCSV<any>(SHEET_CONFIG.urls.maintenanceActions);
-  if (hasExpectedColumns(rows, ['id', 'incident_id', 'technician_id', 'action_taken', 'started_at'])) {
-    return rows as MaintenanceAction[];
-  }
-  return maintenanceActionsMock;
-}
-
-export async function fetchKpiLogs(): Promise<KpiLog[]> {
-  const rows = await fetchCSV<any>(SHEET_CONFIG.urls.kpiLogs);
-  if (hasExpectedColumns(rows, ['id', 'machine_id', 'date', 'downtime_minutes', 'mtbf_hours', 'mttr_minutes', 'incident_count', 'escalation_count', 'closure_rate'])) {
-    return rows as KpiLog[];
-  }
-  return kpiLogsMock;
-}
-
-// ---------------------------------------------------------------------------
 // Main aggregated fetch
 // ---------------------------------------------------------------------------
 export async function fetchSheetData() {
   try {
-    const [machines, technicians, thresholds, sensorReadings, incidents, maintenanceActions, kpiLogs, machineViewRows, kpiSummaryRows] =
-      await Promise.all([
-        fetchMachines(),
-        fetchTechnicians(),
-        fetchThresholds(),
-        fetchSensorReadings(),
-        fetchIncidents(),
-        fetchMaintenanceActions(),
-        fetchKpiLogs(),
-        fetchCSV<DashboardMachineView>(SHEET_CONFIG.urls.machineView),
-        fetchCSV<DashboardKpiSummary>(SHEET_CONFIG.urls.kpiSummary),
-      ]);
-
-    // Join machine_name onto incidents and kpiLogs
-    const incidentsWithNames = incidents.map((inc) => ({
-      ...inc,
-      machine_name: inc.machine_name ?? machines.find((m) => m.id === inc.machine_id)?.name ?? inc.machine_id,
+    const payload = await fetchProductionStatus();
+    const machines: Machine[] = payload.equipements.map((e) => ({
+      id: e.equipement_id,
+      name: e.nom,
+      type: e.type_equipement,
+      location: e.zone_production,
+      status: toMachineStatus(e.statut),
+      created_at: payload.meta.generated_at,
     }));
 
-    const kpiLogsWithNames = kpiLogs.map((k) => ({
-      ...k,
-      machine_name: k.machine_name ?? machines.find((m) => m.id === k.machine_id)?.name ?? k.machine_id,
+    const technicians: Technician[] = techniciansMock;
+
+    const sensorReadings: SensorReading[] = payload.equipements
+      .map((e) => {
+        const summary = resolveMeasureSummary(e.mesures_recentes);
+        if (!summary.reading) return null;
+        return { ...summary.reading, machine_id: e.equipement_id };
+      })
+      .filter(Boolean) as SensorReading[];
+
+    const incidents: Incident[] = payload.equipements
+      .filter((e) => e.nb_alertes_ouvertes > 0)
+      .map((e) => ({
+        id: `INC-${e.equipement_id}`,
+        machine_id: e.equipement_id,
+        machine_name: e.nom,
+        detected_at: payload.meta.generated_at,
+        severity: toIncidentSeverity(e.criticite_gmp),
+        description: `${e.nb_alertes_ouvertes} open alert(s) on ${e.nom}`,
+        status: 'open',
+        created_by: 'auto',
+      }));
+
+    const maintenanceActions: MaintenanceAction[] = [];
+    const thresholds: Threshold[] = [];
+
+    const kpiLogs: KpiLog[] = payload.equipements.map((e) => ({
+      id: `KPI-${e.equipement_id}`,
+      machine_id: e.equipement_id,
+      machine_name: e.nom,
+      date: payload.meta.generated_at.slice(0, 10),
+      downtime_minutes: e.etat_global === 'ok' ? 0 : 30,
+      mtbf_hours: e.etat_global === 'ok' ? 24 : 8,
+      mttr_minutes: e.nb_alertes_ouvertes > 0 ? 30 : 0,
+      incident_count: e.nb_alertes_ouvertes,
+      escalation_count: e.nb_alertes_ouvertes > 1 ? 1 : 0,
+      closure_rate: e.nb_alertes_ouvertes > 0 ? 50 : 100,
     }));
 
-    const maintenanceActionsWithNames = maintenanceActions.map((action) => ({
-      ...action,
-      technician_name:
-        action.technician_name ??
-        technicians.find((t) => t.id === action.technician_id)?.name ??
-        action.technician_id,
-    }));
+    const machineView: DashboardMachineView[] = payload.equipements.map((e) => {
+      const summary = resolveMeasureSummary(e.mesures_recentes);
+      return {
+        machine_id: e.equipement_id,
+        machine_name: e.nom,
+        type: e.type_equipement,
+        location: e.zone_production,
+        machine_status: toMachineStatus(e.statut),
+        latest_device: summary.latestDevice,
+        latest_status: summary.latestStatus,
+        latest_severity: summary.latestSeverity,
+        latest_value_summary: summary.latestValueSummary,
+        active_incident: e.nb_alertes_ouvertes > 0 ? `${e.nb_alertes_ouvertes} alert(s)` : undefined,
+        incident_status: e.nb_alertes_ouvertes > 0 ? 'open' : undefined,
+      };
+    });
 
-    const machineView = hasExpectedColumns(machineViewRows as any[], ['machine_id', 'machine_name', 'type', 'location', 'machine_status'])
-      ? machineViewRows
-      : buildMachineView(machines, sensorReadings, incidentsWithNames);
-    const kpiSummary = hasExpectedColumns(kpiSummaryRows as any[], ['metric', 'value', 'unit', 'status', 'note'])
-      ? kpiSummaryRows
-      : buildKpiSummary(machines, incidentsWithNames, kpiLogsWithNames);
+    const kpiSummary: DashboardKpiSummary[] = [
+      {
+        metric: 'Machines actives',
+        value: String(payload.meta.equipements_ok),
+        unit: '/',
+        status: payload.meta.equipements_alerte > 0 ? 'warning' : 'normal',
+        note: `${payload.meta.nb_equipements} machines total`,
+      },
+      {
+        metric: 'Incidents ouverts',
+        value: String(payload.meta.nb_alertes_total),
+        unit: '',
+        status: payload.meta.nb_alertes_total > 0 ? 'critical' : 'normal',
+        note: 'Open alerts from production API',
+      },
+      {
+        metric: 'Alertes critiques',
+        value: String(payload.meta.equipements_alerte),
+        unit: '',
+        status: payload.meta.equipements_alerte > 0 ? 'critical' : 'normal',
+        note: 'Equipements en alerte',
+      },
+      {
+        metric: 'MTTR moyen',
+        value: String(Math.round(kpiLogs.reduce((a, b) => a + b.mttr_minutes, 0) / (kpiLogs.length || 1))),
+        unit: 'min',
+        status: 'normal',
+        note: 'Calculated from API-derived KPI logs',
+      },
+      {
+        metric: 'Downtime total',
+        value: String(kpiLogs.reduce((a, b) => a + b.downtime_minutes, 0)),
+        unit: 'min',
+        status: 'warning',
+        note: 'Derived from etat_global',
+      },
+    ];
 
     // Build sensor histories keyed by machine ID
     const histories: Record<string, any[]> = {};
@@ -353,21 +377,19 @@ export async function fetchSheetData() {
       histories[m.id] = generateHistory(m.id, 12, base, variance, '');
     });
 
-    const isConnected = !!SHEET_CONFIG.urls.machines;
-
     return {
       machines,
       technicians,
       thresholds,
       sensorReadings,
-      incidents: incidentsWithNames,
-      maintenanceActions: maintenanceActionsWithNames,
-      kpiLogs: kpiLogsWithNames,
+      incidents,
+      maintenanceActions,
+      kpiLogs,
       machineView,
       kpiSummary,
       histories,
       lastUpdate:  new Date().toLocaleTimeString('fr-FR'),
-      isConnected,
+      isConnected: true,
     };
   } catch (error) {
     console.error("Data fetch error (using fallback):", error);
