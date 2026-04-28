@@ -2147,9 +2147,9 @@ export default function App() {
           <span className="text-xs font-black uppercase tracking-widest">© 2026 INDUPHARMA Industrial System</span>
         </div>
         <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest mt-6 md:mt-0">
-          <a href="#" className="hover:text-blue-600 transition-colors">Safety Protocols</a>
-          <a href="#" className="hover:text-blue-600 transition-colors">GMP Compliance</a>
-          <a href="#" className="hover:text-blue-600 transition-colors">System Support</a>
+          <button onClick={() => setActiveTab('Incidents')} className="hover:text-blue-600 transition-colors outline-none cursor-pointer">Safety Protocols</button>
+          <button onClick={() => setActiveTab('Seuils')} className="hover:text-blue-600 transition-colors outline-none cursor-pointer">GMP Compliance</button>
+          <a href="mailto:support@indupharma.local" className="hover:text-blue-600 transition-colors">System Support</a>
         </div>
       </footer>
     </div>
