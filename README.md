@@ -1,100 +1,77 @@
-# INDUPHARMA Live Dashboard
+# 🛡️ INDUPHARMA Live Dashboard - Enterprise Edition
 
-Operational dashboard for live pharmaceutical equipment monitoring, incident visibility, and exportable production reports.
+Operational dashboard for high-precision pharmaceutical equipment monitoring, real-time incident management, and GMP compliance auditing.
 
-## Overview
+## 🚀 Overview
 
-This project is a React + TypeScript single-page dashboard designed for pharmaceutical production monitoring. It integrates real-time telemetry from industrial equipment with a technician workflow management system.
+This is a professional-grade React + TypeScript dashboard specifically engineered for pharmaceutical production environments. It provides a "single pane of glass" view into factory floor operations, bridging the gap between raw IoT telemetry and actionable maintenance workflows.
 
-### Key Features
+---
 
-- **Live Monitoring**: Fetches equipment status from a secure webhook every 3 seconds.
-- **Critical Alert System**: Real-time audio and visual alarms for `GMP_critique` failures.
-- **Smart Workflow Sync**: Local synchronization between technician actions and the visual machine map.
-- **100% Real Data**: Zero manual/mock data; all charts and KPIs are derived strictly from the JSON payload.
-- **AI Recommendation Engine**: Rule-based maintenance suggestions for detected faults.
-- **Professional PDF Reporting**: Branded reports with zone-based productivity analysis.
+## ✨ Key Advanced Features
 
-## Project Structure
+### 📡 Real-Time GMP Monitoring
+- **Live Webhook Integration**: Continuous data synchronization from industrial sensors via secure AppScript/JSON webhooks.
+- **Visual Threshold Gauges**: High-precision monitors comparing live data against **USP (US Pharmacopeia) & ISO 17665** standards for Autoclaves, Cold Storage, and Coating machines.
+- **Safety Zones**: Real-time visualization of Safe, Warning, and Critical zones for every sensor.
 
-- `src/App.tsx`: Main application logic, including the state machine, role-based UI, and PDF generation.
-- `src/services/dataService.ts`: Core data pipeline. Handles fetching, normalization, and strict data integrity checks.
-- `src/types.ts`: TypeScript interfaces defining the domain models (Machine, Incident, Technician, etc.).
-- `api/production-status.js`: Vercel serverless function used as a proxy to handle CORS and pre-process stringified JSON from webhooks.
+### 🔍 Smart Inventory & Filtering
+- **Dynamic Search**: Instant filtering by machine name, code, or location.
+- **Priority Sorting**: Intelligent algorithm that automatically promotes "En Panne" (Down) machines to the top of the view for immediate management visibility.
+- **Status Filtering**: One-click isolation of machines in Maintenance, Active, or Failed states.
 
-## Data Architecture
+### 📜 Persistent Maintenance Audit Log
+- **Action History Persistence**: Integrated `LocalStorage` layer that preserves the history of technician interventions even after API data is cleared or the browser is refreshed.
+- **Non-Volatile Logs**: Retains up to 100 historical records for audit compliance and performance reviews.
 
-The dashboard is strictly driven by a single JSON production webhook. It uses no internal database, relying on the payload and local state for persistence.
+### 🚨 Critical Alert System
+- **Dual-Layer Alarms**: Instant full-screen red modals combined with audible alarms for `GMP_critique` violations.
+- **Smart Silence**: Alarms intelligently silence once a technician acknowledges the incident and starts the workflow.
 
-- **Upstream Webhook**: `https://fusion-ai-api.medifus.dev/webhooks/...`
-- **Proxy Layer**: `api/production-status.js` handles shape validation and payload parsing.
+### 📊 Performance Analytics (KPIs)
+- **Automated MTTR/Downtime**: Real-time calculation of Mean Time To Repair and cumulative downtime per production zone.
+- **AI Assistant**: Rule-based maintenance assistant providing specific troubleshooting advice based on equipment type and failure signature.
 
-### Data Integrity Policy
-As of the latest update, the application has **zero simulated data**:
-- **Charts**: Only display actual historical points provided in the `mesures_recentes` field.
-- **KPIs**: Derived strictly from current equipment states (Active/Alert).
+---
 
-## Alert & Notification System
+## 🛠️ Technical Architecture
 
-The dashboard features a high-priority alert system for critical incidents:
-- **Visual Alert**: A red modal with a bounce animation covers the screen for critical faults.
-- **Audio Alarm**: A sharp alarm sound triggers to notify staff who are not monitoring the screen.
-- **Acknowledge Logic**: Notifications respect the technician workflow; once a task is marked as "Done" or "In Progress", the alarm silences for that incident.
+- **Frontend**: React 19 (Hooks, Context, Memoization)
+- **Build Tool**: Vite 6 (Lightning-fast HMR)
+- **Styling**: Tailwind CSS v4 (Modern industrial aesthetics)
+- **Animations**: Framer Motion (Smooth state transitions and gauges)
+- **Charts**: Recharts (High-performance telemetry visualization)
+- **Data Pipeline**: Custom normalization engine in `src/services/dataService.ts` to ensure 100% data integrity.
 
-## PDF Export
+---
 
-The **Exporter Rapport** function generates a comprehensive operational snapshot:
-- **Branded Header**: Uses the company logo and unique Report ID.
-- **Performance par Zone**: A dedicated table showing machine availability and productivity percentage for each production area.
-- **Snapshot Table**: Detailed status of critical equipment at the time of export.
-- **AI Recommendations**: Summarized maintenance advice for active incidents.
+## 📂 Project Structure
 
-## Access Control (Demo)
+- `src/App.tsx`: The heart of the application. Contains the tab-based routing, real-time logic, and the new **Threshold Monitor Grid**.
+- `src/services/dataService.ts`: Handles the complex mapping of webhook data, persistence logic, and industrial threshold injection.
+- `src/types.ts`: Strictly typed interfaces ensuring full compliance with the pharmaceutical data schema.
 
-The dashboard includes a demo authentication system:
+---
+
+## 🔐 Access Control (Demo)
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
 | **Admin** | `admin@indupharma.local` | `admin123` |
 | **Technician** | `tech@indupharma.local` | `tech123` |
 
-## Tech Stack
+---
 
-- **Framework**: React 19 + Vite 6
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4
-- **Visuals**: Recharts (Charts), Lucide (Icons), Framer Motion (Animations)
-- **PDF**: jsPDF
-- **Deployment**: Vercel (Serverless Functions)
+## 📥 Installation & Deployment
 
-## Getting Started
+1. **Install Dependencies**: `npm install`
+2. **Development**: `npm run dev` (Runs on `http://localhost:3000`)
+3. **Production Build**: `npm run build`
+4. **Deployment**: Optimized for Vercel with dedicated serverless function support for webhook proxies.
 
-### Local Development
+---
 
-1. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-2. **Start the development server**:
-   ```bash
-   npm run dev
-   ```
-3. **Open the app**: `http://localhost:3000`
+## ⚖️ License & Team
 
-### Build
-
-```bash
-npm run build
-```
-
-## Deployment
-
-Deploy on Vercel to ensure the serverless proxy in `/api` functions correctly. Ensure that the `logo.png` is present in the root or public folder for PDF generation.
-
-## License
-
-Apache-2.0
-
-## Team
-
-M. Kassi · M. Ezzi · H. Belayd · M. Mabrouk
+**License**: Apache-2.0
+**Core Team**: M. Kassi · M. Ezzi · H. Belayd · M. Mabrouk
