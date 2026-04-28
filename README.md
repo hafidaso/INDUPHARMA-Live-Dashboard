@@ -1,119 +1,155 @@
 # INDUPHARMA Live Dashboard
 
-A real-time industrial monitoring dashboard built for pharmaceutical manufacturing environments. Provides GMP-compliant machine surveillance, incident management, maintenance tracking, and KPI analytics — all powered by live data from Google Sheets.
+Operational dashboard for live pharmaceutical equipment monitoring, incident visibility, and exportable production reports.
 
----
+## Overview
 
-## Features
+This project is a React + TypeScript single-page dashboard that:
 
-| Tab | Description |
-|---|---|
-| **Vue Globale** | KPI summary cards, machine status map, AI maintenance recommendations, on-call technician panel, live incident table |
-| **Machines** | Equipment catalog with status indicators and a slide-in detail panel per machine |
-| **Capteurs** | Real-time sensor charts — pressure (bar), vibration (mm/s), infrared, and temperature (°C) |
-| **Incidents** | Workflow timeline per incident: detection → acknowledgment → intervention → resolution |
-| **Maintenance** | Full maintenance action journal with technician assignment and timestamps |
-| **KPIs** | Downtime trends, MTTR by equipment, per-machine breakdown (MTBF, incident count, closure rate) |
-| **Seuils** | GMP critical threshold configuration (min / max / critical) per sensor type |
-| **Techniciens** | On-call technician directory with real-time availability status |
+- fetches live equipment status from a webhook endpoint
+- normalizes inconsistent payload formats
+- derives dashboard KPIs and views from the normalized response
+- refreshes automatically every 3 seconds
+- exports a branded PDF report with logo and snapshot tables
 
-**Auto-refresh:** data is polled every 10 seconds.
+## Data Architecture (Webhook-Only)
 
----
+The app uses only the production webhook (no Google Sheets fallback, no mock fallback in the live path):
+
+- Upstream endpoint:  
+  `https://fusion-ai-api.medifus.dev/webhooks/webhook-vug2y2v8zf6cu492khq7g3o0/api/production/status`
+- Production client fetch target:  
+  `GET /api/production-status` (Vercel serverless proxy)
+- Local development fetch target:  
+  direct fetch to the upstream endpoint
+
+### Why the proxy exists
+
+`api/production-status.js` provides:
+
+- server-side fetch to avoid frontend CORS issues in production
+- parsing of nested stringified JSON (`meta`, `equipements`) when webhook tools serialize objects as strings
+- shape validation with explicit `502` diagnostics when payload is invalid
+
+## Expected Payload
+
+```json
+{
+  "meta": {
+    "generated_at": "2026-04-28T15:31:38.414Z",
+    "nb_equipements": 2,
+    "equipements_ok": 2,
+    "equipements_alerte": 0,
+    "nb_alertes_total": 0
+  },
+  "equipements": [
+    {
+      "equipement_id": "a0eebc99-...",
+      "code_machine": "M02",
+      "nom": "Autoclave M02",
+      "zone_production": "Zone A - Ligne 1",
+      "type_equipement": "stérilisation",
+      "criticite_gmp": "critique",
+      "statut": "active",
+      "nb_alertes_ouvertes": 0,
+      "etat_global": "ok",
+      "mesures_recentes": []
+    }
+  ]
+}
+```
+
+Accepted by normalization logic as well:
+
+- wrapped payloads like `{ data: { ... } }` or `{ result: { ... } }`
+- `meta` and/or `equipements` passed as JSON strings
+- equipment aliases (`id`, `name`, `type`, `location`, `status`, `open_alerts`, `state`)
+
+## UI Sections
+
+The dashboard includes these tabs:
+
+- `Vue Globale`
+- `Machines`
+- `Capteurs`
+- `Incidents`
+- `Maintenance`
+- `KPIs`
+- `Seuils`
+- `Techniciens`
+
+Notes on current webhook mapping:
+
+- `machines`, `incidents`, `kpiLogs`, `machineView`, and KPI summary are derived from `equipements`.
+- `technicians`, `maintenanceActions`, and `thresholds` are currently empty unless your webhook is extended to provide corresponding entities.
+- sensor history charts are generated dynamically from latest readings to provide trend context.
+
+## PDF Export
+
+The **Exporter Rapport** action generates a client-side PDF via `jsPDF`:
+
+- report ID + timestamp
+- last refresh info
+- KPI cards (active machines, open incidents, available technicians)
+- equipment snapshot table (paginated if needed)
+- embedded `/logo.png` when available (fallback to no-logo export if loading fails)
+
+## Project Structure
+
+- `src/App.tsx` - main UI, tabs, chart rendering guards, refresh loop, PDF export
+- `src/services/dataService.ts` - fetch, normalization, mapping to dashboard data model
+- `src/types.ts` - TypeScript domain models
+- `api/production-status.js` - production proxy + payload guardrails
+- `vite.config.ts` - build and dev server configuration
 
 ## Tech Stack
 
-- **React 19** + **TypeScript**
-- **Vite 6** (dev server on port 3000)
-- **Tailwind CSS v4** (via `@tailwindcss/vite`)
-- **Recharts** — area, bar, and line charts
-- **Motion (Framer Motion)** — animated tab transitions and slide-in panels
-- **Lucide React** — icons
-- **PapaParse** — CSV parsing utility (available for data imports)
-- **@google/genai** — Gemini AI SDK (wired for future AI assistant features)
+- React 19
+- TypeScript
+- Vite 6
+- Tailwind CSS v4
+- Recharts
+- Motion
+- jsPDF
+- Vercel serverless functions
 
----
+## Run Locally
 
-## Data Model
+Prerequisite: Node.js 18+
 
-```
-Machine          → id, name, type, location, status
-Technician       → id, name, role, email, phone, is_available
-SensorReading    → machine_id, device_id, temperature, pressure, vibration, infrared, status, severity
-Threshold        → machine_id, sensor_type, min_value, max_value, critical_value, unit
-Incident         → machine_id, severity, description, status, root_cause, created_by (auto | manual)
-MaintenanceAction→ incident_id, technician_id, action_taken, started_at, completed_at, notes
-KpiLog           → machine_id, date, downtime_minutes, mtbf_hours, mttr_minutes, incident_count, closure_rate
+```bash
+npm install
+npm run dev
 ```
 
----
+App URL: `http://localhost:3000`
 
-## Getting Started
+## Build and Scripts
 
-**Prerequisites:** Node.js 18+
+- `npm run dev` - start dev server on port 3000
+- `npm run build` - build production bundle
+- `npm run preview` - preview built app
+- `npm run lint` - TypeScript type-check (`tsc --noEmit`)
+- `npm run clean` - remove `dist`
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+## Deployment Notes
 
-2. Copy the environment file and fill in your keys:
-   ```bash
-   cp .env.example .env.local
-   ```
+- Deploy on Vercel so `/api/production-status` is available.
+- The frontend uses `/api/production-status` in production and direct webhook calls on localhost.
+- `vite.config.ts` sets `chunkSizeWarningLimit` to reduce noisy bundle warnings during builds.
 
-3. Run the development server:
-   ```bash
-   npm run dev
-   ```
-   The app will be available at [http://localhost:3000](http://localhost:3000).
+## Troubleshooting
 
----
-
-## Connecting to Google Sheets (Live Data)
-
-The dashboard ships with realistic **mock data** and works out of the box. To switch to live data:
-
-1. Create a Google Sheets workbook with the following sheets:
-   `machines`, `technicians`, `thresholds`, `sensor_readings`, `incidents`, `maintenance_actions`, `kpi_logs`
-
-2. Deploy a **Google Apps Script** web app that exposes each sheet as a JSON endpoint (e.g. `?action=machines`).
-
-3. Paste the deployed Apps Script URL into `src/services/dataService.ts`:
-   ```ts
-   export const SHEET_CONFIG = {
-     endpointUrl: "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec",
-     refreshIntervalMs: 10000
-   };
-   ```
-
-When `endpointUrl` is set, the header badge switches from **"Google Sheet Ready"** to **"Connected to Google Sheet"**.
-
----
-
-## Scripts
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start dev server on port 3000 |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Preview the production build |
-| `npm run lint` | TypeScript type-check (no emit) |
-| `npm run clean` | Remove `dist/` folder |
-
----
-
-## Status Semantics
-
-| Status | Color | Applies to |
-|---|---|---|
-| `active` / `normal` / `closed` | Emerald | Machine, sensor, incident |
-| `maintenance` / `warning` / `in_progress` | Amber | Machine, sensor, incident |
-| `en_panne` / `critical` / `open` / `escalated` | Red | Machine, sensor, incident |
-| `inactive` / `error` | Slate | Machine, sensor |
-
----
+- **No data visible**: open `/api/production-status` on deployed domain and verify it returns valid JSON.
+- **`Production payload has no valid equipements array`**: webhook returned incompatible structure after normalization.
+- **`runtime.lastError: Could not establish connection`**: usually from browser extensions, not dashboard runtime code.
+- **Recharts width/height warning**: guarded by `SafeChartContainer`; if it appears, verify parent containers are visible and have non-zero height.
+- **Old JS asset 404 after deploy**: clear browser cache / hard refresh to load new Vite hashed assets.
 
 ## License
 
 Apache-2.0
+
+## Team
+
+M. Kassi · M. Ezzi · H. Belayd · M. Mabrouk
