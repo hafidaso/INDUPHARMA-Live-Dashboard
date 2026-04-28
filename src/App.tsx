@@ -1305,8 +1305,8 @@ export default function App() {
               {/* Zone Status Summary Bar */}
               <div className="flex flex-wrap gap-3 mb-2">
                 {allZones.map(zone => {
-                  const machinesInZone = (data?.machines ?? []).filter(m => m.location === zone);
-                  const alertsInZone = machinesInZone.filter(m => m.status === 'en_panne' || m.status === 'maintenance').length;
+                  const machinesInZone = (data?.machineView ?? []).filter((mv: any) => mv.location === zone);
+                  const alertsInZone = machinesInZone.filter((mv: any) => mv.active_incident).length;
                   return (
                     <div key={zone} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full shadow-sm text-[10px] font-black uppercase tracking-tight">
                       <span className="text-slate-500">{zone}</span>
@@ -1613,7 +1613,7 @@ export default function App() {
                   <SafeChartContainer className="h-[350px] w-full min-w-0 min-h-[350px]">
                       <BarChart data={allZones.map(zone => ({
                         name: zone,
-                        count: (data?.machines ?? []).filter(m => m.location === zone && m.status === 'en_panne').length
+                        count: (data?.machineView ?? []).filter((mv: any) => mv.location === zone && mv.active_incident).length
                       }))}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="name" fontSize={10} />
