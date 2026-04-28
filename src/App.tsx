@@ -712,6 +712,19 @@ export default function App() {
       .filter((c: any) => Array.isArray(c.history) && c.history.length > 0);
   }, [data]);
 
+  const machineViewWithWorkflow = useMemo(() => {
+    if (!data?.machineView) return [];
+    return data.machineView.map((mv: DashboardMachineView) => {
+      const incident = incidentsWithWorkflow.find(i => i.machine_id === mv.machine_id);
+      const isClosed = incident && (incident.status === 'closed' || incident.status === 'resolved');
+      return {
+        ...mv,
+        active_incident: isClosed ? undefined : mv.active_incident,
+        incident_status: incident ? incident.status : mv.incident_status
+      };
+    });
+  }, [data?.machineView, incidentsWithWorkflow]);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     const user = DEMO_USERS.find((u) => u.email === email.trim() && u.password === password);
@@ -1066,7 +1079,7 @@ export default function App() {
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {data.machineView.map((mv: DashboardMachineView) => (
+                    {machineViewWithWorkflow.map((mv: DashboardMachineView) => (
                       <Card 
                         key={mv.machine_id} 
                         className="cursor-pointer hover:border-blue-300 group"
