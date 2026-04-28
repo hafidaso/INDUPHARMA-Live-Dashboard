@@ -973,25 +973,25 @@ export default function App() {
       <div className="min-h-screen bg-[#F7F4EE] text-slate-800">
         {webhookAlertPopup}
         {criticalAlertPopup}
-        <header className="bg-white border-b border-slate-200 px-6 py-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <header className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="INDUPHARMA" className="h-12 w-auto" />
+              <img src="/logo.png" alt="INDUPHARMA" className="h-10 sm:h-12 w-auto" />
               <div>
-                <h1 className="text-lg font-black">Technician Dashboard</h1>
-                <p className="text-xs text-slate-500">Connected as {authUser.name}</p>
+                <h1 className="text-base sm:text-lg font-black">Technician Dashboard</h1>
+                <p className="text-[10px] sm:text-xs text-slate-500">Connected as {authUser.name}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={() => handleRefresh()}
-                className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-black"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-black"
               >
                 Refresh
               </button>
               <button
                 onClick={handleLogout}
-                className="px-3 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-xs font-black"
+                className="flex-1 sm:flex-none px-3 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-xs font-black"
               >
                 Logout
               </button>
@@ -1062,32 +1062,34 @@ export default function App() {
       {criticalAlertPopup}
       
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-6 py-4">
-        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6 font-sans">
-          <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="INDUPHARMA" className="h-20 w-auto" />
-            <div>
-              <div className="flex items-center gap-3">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4">
+        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-6">
+          <div className="flex items-center gap-3 sm:gap-4 w-full lg:w-auto">
+            <img src="/logo.png" alt="INDUPHARMA" className="h-14 sm:h-20 w-auto" />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {error ? (
-                  <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[10px] uppercase tracking-widest rounded border border-red-200 font-black flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Connection Error
+                  <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[9px] sm:text-[10px] uppercase tracking-widest rounded border border-red-200 font-black flex items-center gap-1">
+                    <AlertTriangle className="w-2.5 h-2.5" /> Connection Error
                   </span>
                 ) : data?.isConnected ? (
-                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[10px] uppercase tracking-widest rounded border border-emerald-200 font-black flex items-center gap-1">
-                    <Database className="w-3 h-3" /> Connected to Webhook
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] sm:text-[10px] uppercase tracking-widest rounded border border-emerald-200 font-black flex items-center gap-1">
+                    <Database className="w-2.5 h-2.5" /> Webhook Live
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] uppercase tracking-widest rounded border border-blue-100 font-black flex items-center gap-1">
-                    <Database className="w-3 h-3" /> Webhook Ready
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] sm:text-[10px] uppercase tracking-widest rounded border border-blue-100 font-black flex items-center gap-1">
+                    <Database className="w-2.5 h-2.5" /> Webhook Ready
                   </span>
                 )}
               </div>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mt-1">Live Downtime Monitoring & GMP Maintenance Intelligence</p>
+              <p className="text-slate-500 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mt-1 leading-tight">
+                Live Monitoring & GMP Maintenance Intelligence
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="hidden xl:flex items-center gap-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full lg:w-auto">
+            <div className="hidden sm:flex items-center gap-6">
               <div className="flex flex-col items-end">
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Last Refresh</span>
                 <span className="text-sm text-slate-700 font-bold font-mono">{data?.lastUpdate || '--:--:--'}</span>
@@ -1102,22 +1104,24 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleLogout}
-                className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-black"
-              >
-                Logout
-              </button>
-              <button 
-                onClick={() => handleRefresh()}
-                className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-all active:scale-95"
-              >
-                <RefreshCcw className={cn("w-5 h-5", loading && "animate-spin")} />
-              </button>
+            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-black"
+                >
+                  Logout
+                </button>
+                <button 
+                  onClick={() => handleRefresh()}
+                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-all active:scale-95"
+                >
+                  <RefreshCcw className={cn("w-5 h-5", loading && "animate-spin")} />
+                </button>
+              </div>
               <button
                 onClick={handleExportReport}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-200 active:scale-95"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all shadow-lg shadow-blue-200 active:scale-95 whitespace-nowrap"
               >
                 <Download className="w-4 h-4 text-blue-200" />
                 Exporter Rapport
@@ -1167,7 +1171,7 @@ export default function App() {
               className="space-y-6"
             >
               {/* KPI Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 {dashboardKpiSummary.map((kpi: DashboardKpiSummary, idx: number) => (
                       <KPICard 
                         key={idx} 
@@ -1697,25 +1701,27 @@ export default function App() {
                             </div>
                             
                             {/* Workflow Timeline */}
-                            <div className="relative mt-8 mb-12">
-                               <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2" />
-                               <div className="flex justify-between items-center relative">
+                            <div className="relative mt-8 mb-16 md:mb-12">
+                               <div className="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -translate-y-1/2" />
+                               <div className="flex flex-col md:flex-row justify-between items-start md:items-center relative gap-8 md:gap-0">
                                   {[
                                     { label: 'Détecté', time: incident.detected_at, icon: Bell },
                                     { label: 'Pris en charge', time: incident.acknowledged_at, icon: UserCheck },
                                     { label: 'Intervention', time: data.maintenanceActions.find((a: any) => a.incident_id === incident.id)?.started_at, icon: Wrench },
                                     { label: 'Résolu', time: incident.resolved_at, icon: CheckCircle2 }
                                   ].map((step, idx) => (
-                                    <div key={idx} className="flex flex-col items-center gap-2">
+                                    <div key={idx} className="flex flex-row md:flex-col items-center gap-4 md:gap-2 relative w-full md:w-auto">
                                        <div className={cn(
-                                         "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all shadow-sm z-10",
+                                         "w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all shadow-sm z-10 shrink-0",
                                          step.time ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200 text-slate-300"
                                        )}>
                                          <step.icon className="w-4 h-4" />
                                        </div>
-                                       <div className="text-center absolute top-10 whitespace-nowrap">
-                                          <p className="text-[9px] font-black uppercase tracking-tighter text-slate-500">{step.label}</p>
-                                          <p className="text-[9px] font-bold text-blue-600">{step.time || 'En attente...'}</p>
+                                       {/* Vertical line for mobile */}
+                                       {idx < 3 && <div className="md:hidden absolute top-8 left-4 w-0.5 h-8 bg-slate-200" />}
+                                       <div className="text-left md:text-center md:absolute md:top-10">
+                                          <p className="text-[10px] md:text-[9px] font-black uppercase tracking-tight text-slate-500">{step.label}</p>
+                                          <p className="text-xs md:text-[9px] font-bold text-blue-600">{step.time || 'En attente...'}</p>
                                        </div>
                                     </div>
                                   ))}
