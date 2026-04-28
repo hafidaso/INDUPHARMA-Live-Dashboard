@@ -630,7 +630,7 @@ export default function App() {
       percent: Math.round((stats.active / stats.total) * 100)
     })).slice(0, 4);
 
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 12;
@@ -731,7 +731,7 @@ export default function App() {
       doc.roundedRect(margin, y, contentWidth, 28, 3, 3, 'FD');
 
       if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', margin + 3, y + 4.5, 32, 11);
+        doc.addImage(logoDataUrl, 'PNG', margin + 3, y + 4.5, 32, 11, 'logo', 'FAST');
       } else {
         doc.setTextColor(...colors.title);
         doc.setFontSize(12);
