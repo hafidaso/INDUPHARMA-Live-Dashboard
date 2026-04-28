@@ -221,17 +221,6 @@ async function fetchProductionStatus(): Promise<ProductionResponse> {
 }
 
 // ---------------------------------------------------------------------------
-// Sensor history generator
-// ---------------------------------------------------------------------------
-const generateHistory = (machineId: string, count: number, base: number, variance: number, unit: string) =>
-  Array.from({ length: count }, (_, i) => ({
-    timestamp:  new Date(Date.now() - (count - i) * 3_600_000).toISOString(),
-    value:      base + Math.random() * variance - variance / 2,
-    machine_id: machineId,
-    unit,
-  }));
-
-// ---------------------------------------------------------------------------
 // Main aggregated fetch
 // ---------------------------------------------------------------------------
 export async function fetchSheetData() {
@@ -261,11 +250,11 @@ export async function fetchSheetData() {
         const isAvailable = hasWebhookAvailability
           ? Boolean(t.is_available)
           : normalizedStatus !== 'in_progress' && normalizedStatus !== 'blocked';
-        const email = String(t?.email ?? `tech${index + 1}@indupharma.local`);
+        const email = String(t?.email ?? 'N/A');
         return {
           id: String(t?.id ?? email ?? `TECH-${index + 1}`),
-          name: String(t?.name ?? `Technicien ${index + 1}`),
-          role: String(t?.role ?? 'technicien'),
+          name: String(t?.name ?? 'Technicien inconnu'),
+          role: String(t?.role ?? 'N/A'),
           email,
           phone: String(t?.phone ?? 'N/A'),
           is_available: isAvailable,
@@ -320,12 +309,12 @@ export async function fetchSheetData() {
       machine_id: e.equipement_id,
       machine_name: e.nom,
       date: payload.meta.generated_at.slice(0, 10),
-      downtime_minutes: e.etat_global === 'ok' ? 0 : 30,
-      mtbf_hours: e.etat_global === 'ok' ? 24 : 8,
-      mttr_minutes: e.nb_alertes_ouvertes > 0 ? 30 : 0,
+      downtime_minutes: 0,
+      mtbf_hours: 0,
+      mttr_minutes: 0,
       incident_count: e.nb_alertes_ouvertes,
-      escalation_count: e.nb_alertes_ouvertes > 1 ? 1 : 0,
-      closure_rate: e.nb_alertes_ouvertes > 0 ? 50 : 100,
+      escalation_count: 0,
+      closure_rate: 0,
     }));
 
     const machineView: DashboardMachineView[] = payload.equipements.map((e) => {
@@ -385,13 +374,13 @@ export async function fetchSheetData() {
 
     // Build sensor histories keyed by machine ID
     const histories: Record<string, any[]> = {};
-    machines.forEach((m) => {
-      const r = sensorReadings.find((s) => s.machine_id === m.id);
-      const base     = r?.pressure    ?? r?.temperature ?? r?.vibration ?? 22;
-      const variance = r?.pressure    != null ? 0.8
-                     : r?.vibration   != null ? 4.0
-                     : 5.0;
-      histories[m.id] = generateHistory(m.id, 12, base, variance, '');
+    payload.equipements.forEach((e) => {
+      histories[e.equipement_id] = (e.mesures_recentes ?? []).map(r => ({
+        timestamp: r.timestamp ?? new Date().toISOString(),
+        value: r.valeur ?? 0,
+        machine_id: e.equipement_id,
+        unit: r.unite ?? ''
+      })).reverse(); // Reverse to have chronological order if API sends latest first
     });
 
     return {
