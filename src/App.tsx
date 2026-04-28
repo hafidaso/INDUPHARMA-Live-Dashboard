@@ -171,7 +171,11 @@ const SafeChartContainer: React.FC<{ className: string; children: React.ReactNod
 
   return (
     <div ref={hostRef} className={className}>
-      {ready ? <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer> : null}
+      {ready ? (
+        <ResponsiveContainer width="100%" height="100%" minWidth={10} minHeight={10}>
+          {children}
+        </ResponsiveContainer>
+      ) : null}
     </div>
   );
 };
