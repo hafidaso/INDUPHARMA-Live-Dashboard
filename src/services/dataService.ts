@@ -34,6 +34,18 @@ type ProductionMeasure = {
   timestamp?: string;
 };
 
+type ProductionTechnicien = {
+  id?: string;
+  name?: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+  action_taken?: string;
+  started_at?: string;
+  completed_at?: string | null;
+};
+
 type ProductionEquipement = {
   equipement_id: string;
   code_machine?: string | null;
@@ -45,6 +57,7 @@ type ProductionEquipement = {
   nb_alertes_ouvertes: number;
   etat_global: string;
   mesures_recentes?: ProductionMeasure[];
+  techniciens?: ProductionTechnicien[];
 };
 
 type ProductionResponse = {
@@ -93,6 +106,7 @@ function normalizeProductionResponse(raw: any): ProductionResponse {
     nb_alertes_ouvertes: Number(e?.nb_alertes_ouvertes ?? e?.open_alerts ?? 0),
     etat_global: String(e?.etat_global ?? e?.state ?? 'ok'),
     mesures_recentes: Array.isArray(e?.mesures_recentes) ? e.mesures_recentes : [],
+    techniciens: Array.isArray(e?.techniciens) ? e.techniciens : [],
   }));
 
   return {
@@ -231,7 +245,23 @@ export async function fetchSheetData() {
       created_at: payload.meta.generated_at,
     }));
 
-    const technicians: Technician[] = [];
+    const technicians: Technician[] = payload.equipements
+      .flatMap((e) => e.techniciens ?? [])
+      .filter((t) => String(t?.role ?? '').toLowerCase().includes('technicien_maintenance'))
+      .map((t, index) => {
+        const status = String(t?.status ?? '').toLowerCase();
+        const isAvailable = status !== 'in_progress' && status !== 'blocked';
+        const email = String(t?.email ?? `tech${index + 1}@indupharma.local`);
+        return {
+          id: String(t?.id ?? email ?? `TECH-${index + 1}`),
+          name: String(t?.name ?? `Technicien ${index + 1}`),
+          role: String(t?.role ?? 'technicien_maintenance'),
+          email,
+          phone: String(t?.phone ?? 'N/A'),
+          is_available: isAvailable,
+        };
+      })
+      .filter((tech, idx, arr) => arr.findIndex((t) => t.email === tech.email || t.name === tech.name) === idx);
 
     const sensorReadings: SensorReading[] = payload.equipements
       .map((e) => {
