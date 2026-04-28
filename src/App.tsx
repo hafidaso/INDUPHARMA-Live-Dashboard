@@ -242,6 +242,7 @@ const KPICard = ({ metric, value, unit, status, note, icon: Icon }: KPICardProps
 
 export default function App() {
   const INCIDENT_PROGRESS_STORAGE_KEY = 'indupharma_incident_progress';
+  const MAINTENANCE_HISTORY_STORAGE_KEY = 'indupharma_maintenance_history';
   const [authUser, setAuthUser] = useState<DemoUser | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -261,6 +262,7 @@ export default function App() {
   const [notifiedIncidentIds, setNotifiedIncidentIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'en_panne' | 'maintenance'>('all');
+  const [maintenanceHistory, setMaintenanceHistory] = useState<MaintenanceAction[]>([]);
 
   const selectedMachine = useMemo(() => {
     if (!data || !selectedMachineId) return null;
@@ -816,6 +818,34 @@ export default function App() {
     const interval = setInterval(() => handleRefresh(true), SHEET_CONFIG.refreshIntervalMs);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(MAINTENANCE_HISTORY_STORAGE_KEY);
+      if (raw) setMaintenanceHistory(JSON.parse(raw));
+    } catch (e) { console.error('Failed to load history', e); }
+  }, []);
+
+  useEffect(() => {
+    if (!data?.maintenanceActions) return;
+    setMaintenanceHistory(prev => {
+      const merged = [...prev];
+      data.maintenanceActions.forEach((newAct: MaintenanceAction) => {
+        const idx = merged.findIndex(a => a.id === newAct.id);
+        if (idx === -1) {
+          merged.push(newAct);
+        } else {
+          merged[idx] = { ...merged[idx], ...newAct };
+        }
+      });
+      // Sort by started_at desc
+      merged.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+      
+      const limited = merged.slice(0, 100); // Keep last 100 actions
+      window.localStorage.setItem(MAINTENANCE_HISTORY_STORAGE_KEY, JSON.stringify(limited));
+      return limited;
+    });
+  }, [data?.maintenanceActions]);
 
   useEffect(() => {
     if (!loading && data && data.isConnected === false) {
@@ -1781,7 +1811,7 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {data.maintenanceActions.map((action: MaintenanceAction) => (
+                        {maintenanceHistory.map((action: MaintenanceAction) => (
                           <tr key={action.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-6 py-4 text-[10px] font-mono font-black text-slate-400">{action.id}</td>
                             <td className="px-6 py-4 text-[10px] font-black text-blue-600 uppercase font-mono">{action.incident_id}</td>
