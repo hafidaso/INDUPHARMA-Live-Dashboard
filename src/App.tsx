@@ -241,6 +241,7 @@ const KPICard = ({ metric, value, unit, status, note, icon: Icon }: KPICardProps
 // --- Main App ---
 
 export default function App() {
+  const INCIDENT_PROGRESS_STORAGE_KEY = 'indupharma_incident_progress';
   const [authUser, setAuthUser] = useState<DemoUser | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -275,7 +276,12 @@ export default function App() {
 
     const now = new Date();
     const reportId = `RPT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${now.getTime().toString().slice(-6)}`;
-    const openIncidents = (data.incidents ?? []).filter((i: any) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated').length;
+    const incidentsLinked: Incident[] = (data.incidents ?? []).map((incident: Incident) => {
+      const progress = incidentProgress[incident.id];
+      const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
+      return { ...incident, status: mappedStatus ?? incident.status };
+    });
+    const openIncidents = incidentsLinked.filter((i: any) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated').length;
     const activeMachines = (data.machines ?? []).filter((m: any) => m.status === 'active').length;
     const totalMachines = (data.machines ?? []).length;
     const availableTechs = (data.technicians ?? []).filter((t: any) => !!t.is_available).length;
@@ -284,7 +290,30 @@ export default function App() {
       openIncidents === 0 ? 'Stable' : openIncidents <= 2 ? 'Sous surveillance' : 'Alerte';
     const productionStatusColor =
       productionStatus === 'Stable' ? [34, 197, 94] : productionStatus === 'Sous surveillance' ? [245, 158, 11] : [239, 68, 68];
-    const safeRows = (data.machines ?? []).slice(0, 7);
+    const machineRows = (data.machineView ?? [])
+      .map((mv: any) => {
+        const incident = incidentsLinked.find((inc: any) => inc.machine_id === mv.machine_id);
+        return {
+          name: mv.machine_name ?? 'N/A',
+          zone: mv.location ?? 'N/A',
+          status: mv.machine_status ?? 'inactive',
+          criticite: incident?.severity ?? 'none',
+          updatedAt: data.lastUpdate ?? '--:--:--',
+        };
+      })
+      .slice(0, 7);
+
+    const attentionPoints: string[] = [];
+    if (openIncidents > 0) attentionPoints.push(`${openIncidents} incident(s) ouvert(s) en cours de traitement.`);
+    if (availableTechs === 0) attentionPoints.push('Aucun technicien disponible actuellement.');
+    if (availabilityRate < 80) attentionPoints.push(`Disponibilite machines faible (${availabilityRate}%).`);
+    if (attentionPoints.length === 0) attentionPoints.push('Aucun point d attention critique detecte au snapshot.');
+
+    const dynamicRecommendation =
+      (siteRecommendations?.[0]?.recommendation as string | undefined) ??
+      (openIncidents > 0
+        ? 'Prioriser la resolution des incidents ouverts et renforcer le suivi des equipements en alerte.'
+        : 'Maintenir la surveillance active et verifier la disponibilite maintenance avant les pics de production.');
 
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -370,17 +399,10 @@ export default function App() {
       doc.setFillColor(...colors.card);
       doc.setDrawColor(...colors.border);
       doc.roundedRect(margin, y, contentWidth, 14, 2.5, 2.5, 'FD');
-      const summary =
-        openIncidents === 0
-          ? 'La production est stable: aucun incident ouvert detecte au moment du snapshot.'
-          : `Des incidents ouverts sont en cours (${openIncidents}). Une vigilance operationnelle est recommandee.`;
-      const attention =
-        availableTechs === 0
-          ? ' Point d attention: aucun technicien disponible actuellement.'
-          : '';
+      const summary = `Snapshot live: ${totalMachines} machine(s), ${activeMachines} active(s), ${openIncidents} incident(s) ouvert(s), ${availableTechs} technicien(s) disponible(s).`;
       doc.setTextColor(...colors.title);
       doc.setFontSize(9.1);
-      const summaryLines = doc.splitTextToSize(`${summary}${attention}`, contentWidth - 8);
+      const summaryLines = doc.splitTextToSize(summary, contentWidth - 8);
       doc.text(summaryLines, margin + 4, y + 5.4);
       y += 17;
 
@@ -413,20 +435,20 @@ export default function App() {
       doc.text('Maj', margin + 162, y + 4.5);
       y += 8;
 
-      safeRows.forEach((m: any, idx: number) => {
+      machineRows.forEach((m: any, idx: number) => {
         const rowH = 6.8;
         if (idx % 2 === 0) {
           doc.setFillColor(250, 250, 249);
           doc.rect(margin, y - 4.6, contentWidth, rowH, 'F');
         }
-        const severity = openIncidents > 0 && m.status !== 'active' ? 'Alerte' : 'OK';
+        const severity = String(m.criticite ?? 'none').toUpperCase();
         const statusColor = m.status === 'active' ? colors.ok : colors.alert;
 
         doc.setTextColor(...colors.title);
         doc.setFontSize(8.2);
         doc.text(String(m.name ?? 'N/A').slice(0, 26), margin + 2, y);
         doc.setTextColor(...colors.subtitle);
-        doc.text(String(m.location ?? 'N/A').slice(0, 22), margin + 56, y);
+        doc.text(String(m.zone ?? 'N/A').slice(0, 22), margin + 56, y);
 
         doc.setFillColor(...statusColor);
         doc.roundedRect(margin + 105, y - 3.8, 18, 5.2, 1.8, 1.8, 'F');
@@ -438,7 +460,7 @@ export default function App() {
         doc.setFontSize(8.1);
         doc.text(severity, margin + 132, y);
         doc.setTextColor(...colors.subtitle);
-        doc.text(String(data.lastUpdate ?? '--:--:--'), margin + 162, y);
+        doc.text(String(m.updatedAt ?? '--:--:--'), margin + 162, y);
 
         y += 6.3;
       });
@@ -446,10 +468,7 @@ export default function App() {
       y += 1.8;
 
       // Points d'attention
-      const attentionText =
-        availableTechs === 0
-          ? 'Aucun technicien disponible au moment du snapshot. En cas d incident critique, une escalade automatique est recommandee.'
-          : 'Le niveau de disponibilite maintenance est acceptable, maintenir un suivi actif pendant les heures de charge.';
+      const attentionText = attentionPoints.join(' ');
       doc.setFillColor(255, 250, 245);
       doc.setDrawColor(...colors.border);
       doc.roundedRect(margin, y, contentWidth, 13, 2.3, 2.3, 'FD');
@@ -472,7 +491,7 @@ export default function App() {
       doc.setFontSize(8.2);
       doc.text(
         doc.splitTextToSize(
-          'Maintenir la surveillance active des equipements et verifier la disponibilite maintenance avant les pics de production.',
+          dynamicRecommendation,
           contentWidth - 8
         ),
         margin + 3,
@@ -509,15 +528,68 @@ export default function App() {
     }
   }, [data, loading]);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(INCIDENT_PROGRESS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        setIncidentProgress(parsed);
+      }
+    } catch {
+      // ignore storage parse errors
+    }
+  }, [INCIDENT_PROGRESS_STORAGE_KEY]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(INCIDENT_PROGRESS_STORAGE_KEY, JSON.stringify(incidentProgress));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [incidentProgress, INCIDENT_PROGRESS_STORAGE_KEY]);
+
   const selectedMachine = useMemo(() => {
     if (!data || !selectedMachineId) return null;
     return data.machines.find((m: any) => m.id === selectedMachineId);
   }, [data, selectedMachineId]);
 
+  const updateIncidentProgress = (incidentId: string, status: ActionProgressStatus, technician: string) => {
+    setIncidentProgress((prev) => ({
+      ...prev,
+      [incidentId]: {
+        status,
+        technician,
+        updated_at: new Date().toLocaleString('fr-FR'),
+      },
+    }));
+  };
+
+  const incidentsWithWorkflow: Incident[] = useMemo(() => {
+    if (!data?.incidents) return [];
+    return data.incidents.map((incident: Incident) => {
+      const progress = incidentProgress[incident.id];
+      const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
+      return { ...incident, status: mappedStatus ?? incident.status };
+    });
+  }, [data, incidentProgress]);
+
+  const technicianAlerts = useMemo(() => {
+    return incidentsWithWorkflow.map((incident: Incident) => {
+      const progress = incidentProgress[incident.id];
+      return {
+        ...incident,
+        actionStatus: progress?.status ?? ('not_yet' as ActionProgressStatus),
+        assignedTechnician: progress?.technician ?? 'Unassigned',
+        updatedAt: progress?.updated_at ?? '-',
+      };
+    }).filter((incident: any) =>
+      incident.status === 'open' || incident.status === 'in_progress' || incident.status === 'escalated'
+    );
+  }, [incidentsWithWorkflow, incidentProgress]);
+
   const siteRecommendations = useMemo(() => {
-    if (!data) return [];
-    const criticalIncidents = data.incidents.filter((i: any) => i.severity === 'critical' || i.severity === 'high');
-    
+    const criticalIncidents = incidentsWithWorkflow.filter((i: any) => i.severity === 'critical' || i.severity === 'high');
     return criticalIncidents.map((inc: any) => {
       let rec = "Inspection immédiate requise.";
       let owner = "Maintenance";
@@ -540,40 +612,7 @@ export default function App() {
         owner
       };
     });
-  }, [data]);
-
-  const updateIncidentProgress = (incidentId: string, status: ActionProgressStatus, technician: string) => {
-    setIncidentProgress((prev) => ({
-      ...prev,
-      [incidentId]: {
-        status,
-        technician,
-        updated_at: new Date().toLocaleString('fr-FR'),
-      },
-    }));
-  };
-
-  const effectiveIncidents: Incident[] = useMemo(() => {
-    if (!data?.incidents) return [];
-    return data.incidents.map((incident: Incident) => {
-      const progress = incidentProgress[incident.id];
-      const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
-      return { ...incident, status: mappedStatus ?? incident.status };
-    });
-  }, [data, incidentProgress]);
-
-  const technicianAlerts = useMemo(() => {
-    if (!data?.incidents) return [];
-    return data.incidents.map((incident: Incident) => {
-      const progress = incidentProgress[incident.id];
-      return {
-        ...incident,
-        actionStatus: progress?.status ?? ('not_yet' as ActionProgressStatus),
-        assignedTechnician: progress?.technician ?? 'Unassigned',
-        updatedAt: progress?.updated_at ?? '-',
-      };
-    });
-  }, [data, incidentProgress]);
+  }, [incidentsWithWorkflow]);
 
   const sensorCards = useMemo(() => {
     if (!data?.machines || !data?.histories) return [];
@@ -1075,7 +1114,7 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {effectiveIncidents.map((incident: Incident) => {
+                      {incidentsWithWorkflow.map((incident: Incident) => {
                         const action = data.maintenanceActions.find((a: any) => a.incident_id === incident.id);
                         const progress = incidentProgress[incident.id];
                         return (
@@ -1395,7 +1434,7 @@ export default function App() {
             <motion.div key="incidents-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <Card title="Incidents & Workflow Performance" icon={AlertTriangle}>
                     <div className="space-y-8">
-                       {effectiveIncidents.map((incident: Incident) => (
+                       {incidentsWithWorkflow.map((incident: Incident) => (
                          <div key={incident.id} className="p-6 border border-slate-100 rounded-2xl bg-slate-50/30">
                             <div className="flex items-center justify-between mb-6">
                                <div className="flex items-center gap-4">
@@ -1522,7 +1561,7 @@ export default function App() {
 
                    <Card title="Incidents Récents sur Équipement" icon={AlertTriangle}>
                       <div className="space-y-4">
-                        {data.incidents.filter((i: any) => i.machine_id === selectedMachine.id).map((inc: Incident) => (
+                        {incidentsWithWorkflow.filter((i: any) => i.machine_id === selectedMachine.id).map((inc: Incident) => (
                            <div key={inc.id} className="p-4 border border-slate-100 rounded-xl space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-black text-slate-400 font-mono">{inc.id}</span>
