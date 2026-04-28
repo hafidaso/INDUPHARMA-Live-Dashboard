@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Activity, 
   AlertTriangle, 
@@ -130,6 +130,32 @@ const Card: React.FC<{ children: React.ReactNode, className?: string, title?: st
     </div>
   </div>
 );
+
+const SafeChartContainer: React.FC<{ className: string; children: React.ReactNode }> = ({ className, children }) => {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const element = hostRef.current;
+    if (!element) return;
+
+    const checkSize = () => {
+      const rect = element.getBoundingClientRect();
+      setReady(rect.width > 0 && rect.height > 0);
+    };
+
+    checkSize();
+    const observer = new ResizeObserver(checkSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={hostRef} className={className}>
+      {ready ? <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer> : null}
+    </div>
+  );
+};
 
 interface KPICardProps extends DashboardKpiSummary {
   icon: any;
@@ -544,8 +570,7 @@ export default function App() {
             >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card title="Downtime Trends (Derniers 7 Jours)" icon={Activity}>
-                  <div className="h-[350px] w-full min-w-0 min-h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <SafeChartContainer className="h-[350px] w-full min-w-0 min-h-[350px]">
                       <AreaChart data={data.kpiLogs}>
                         <defs>
                           <linearGradient id="colorDown" x1="0" y1="0" x2="0" y2="1">
@@ -559,13 +584,11 @@ export default function App() {
                         <Tooltip />
                         <Area type="monotone" dataKey="downtime_minutes" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDown)" strokeWidth={3} />
                       </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                  </SafeChartContainer>
                 </Card>
 
                 <Card title="MTTR par Équipement" icon={Clock}>
-                  <div className="h-[350px] w-full min-w-0 min-h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <SafeChartContainer className="h-[350px] w-full min-w-0 min-h-[350px]">
                       <BarChart data={data.kpiLogs}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="machine_name" fontSize={10} />
@@ -573,8 +596,7 @@ export default function App() {
                         <Tooltip />
                         <Bar dataKey="mttr_minutes" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={40} />
                       </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  </SafeChartContainer>
                 </Card>
               </div>
 
@@ -693,8 +715,7 @@ export default function App() {
             <motion.div key="sensors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                  <Card title="Pression: Autoclave M02" icon={Activity}>
-                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
                         <LineChart data={data.histories['M01']}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
@@ -704,13 +725,11 @@ export default function App() {
                           <ReferenceLine y={3.0} label="Critique" stroke="#dc2626" strokeDasharray="3 3" />
                           <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb' }} />
                         </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                    </SafeChartContainer>
                  </Card>
 
                  <Card title="Vibration: Compresseuse C01" icon={Zap}>
-                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
                         <AreaChart data={data.histories['M02']}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
@@ -718,13 +737,11 @@ export default function App() {
                           <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
                           <Area type="monotone" dataKey="value" stroke="#f59e0b" fill="#fef3c7" strokeWidth={3} />
                         </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
+                    </SafeChartContainer>
                  </Card>
 
                  <Card title="Infrarouge: Mélangeur B03" icon={Thermometer}>
-                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
                         <LineChart data={data.histories['M03']}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
@@ -732,13 +749,11 @@ export default function App() {
                           <Tooltip labelFormatter={(val) => new Date(val).toLocaleString()} />
                           <Line type="monotone" dataKey="value" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} />
                         </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                    </SafeChartContainer>
                  </Card>
 
                  <Card title="Température: Chambre Froide S05 & Remplisseuse R04" icon={Thermometer}>
-                    <div className="h-[300px] w-full min-w-0 min-h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <SafeChartContainer className="h-[300px] w-full min-w-0 min-h-[300px]">
                         <LineChart>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} allowDuplicatedCategory={false} />
@@ -749,8 +764,7 @@ export default function App() {
                           <Line data={data.histories['M05']} type="monotone" dataKey="value" name="Chambre Froide S05" stroke="#3b82f6" strokeWidth={3} dot={false} />
                           <Line data={data.histories['M04']} type="monotone" dataKey="value" name="Remplisseuse R04" stroke="#10b981" strokeWidth={3} dot={false} />
                         </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                    </SafeChartContainer>
                  </Card>
               </div>
             </motion.div>
