@@ -25,6 +25,9 @@ import {
 // ---------------------------------------------------------------------------
 const SHEET_BASE =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vRL-A-qoJjc6Rca7L5_tCsG3bh0-_X1OSSIIedmrXp5s7O67MSSJkX7xX6IVVQ1DjmxPaxumrobk1Yb/pub";
+const SOURCE_DOC_ID = "1qWn0p9lrOjz_zssADNY6N0HtJbkFMCHTmE-PKjMRk4k";
+const buildDocCsvUrl = (gid: string) =>
+  `https://docs.google.com/spreadsheets/d/${SOURCE_DOC_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
 
 export const SHEET_CONFIG = {
   urls: {
@@ -79,7 +82,10 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
       dynamicTyping: true,
       complete: (results) => {
         window.clearTimeout(timeout);
-        settle(results.data);
+        const cleaned = (results.data as any[]).filter((row) =>
+          row && typeof row === 'object' && Object.values(row).some((v) => String(v ?? '').trim() !== '')
+        ) as T[];
+        settle(cleaned);
       },
       error: (err) => {
         window.clearTimeout(timeout);
@@ -88,6 +94,15 @@ async function fetchCSV<T>(url: string): Promise<T[] | null> {
       },
     });
   });
+}
+
+async function fetchCSVFromSources<T>(urls: string[]): Promise<T[] | null> {
+  for (const sourceUrl of urls) {
+    if (!sourceUrl) continue;
+    const rows = await fetchCSV<T>(sourceUrl);
+    if (rows && rows.length > 0) return rows;
+  }
+  return null;
 }
 
 function hasExpectedColumns(rows: any[] | null, requiredColumns: string[]): boolean {
@@ -223,7 +238,10 @@ export async function fetchMachines(): Promise<Machine[]> {
 }
 
 export async function fetchTechnicians(): Promise<Technician[]> {
-  const rows = await fetchCSV<any>(SHEET_CONFIG.urls.technicians);
+  const rows = await fetchCSVFromSources<any>([
+    SHEET_CONFIG.urls.technicians,
+    buildDocCsvUrl("2117617908"),
+  ]);
   if (hasExpectedColumns(rows, ['id', 'name', 'role', 'email', 'phone', 'is_available'])) {
     return rows.map((r: any) => ({
       ...r,
