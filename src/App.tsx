@@ -178,16 +178,22 @@ Formatte ta réponse en français avec :
 
 Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fusion AI Engine".`;
 
-      // Attempt 1: Gemini 1.5 Flash (v1 stable)
-      // Fallback: Gemini Pro (v1 stable)
-      const models = ['gemini-1.5-flash', 'gemini-pro'];
+      // Intelligent Multi-Model & Multi-Version Fallback Loop
+      const configurations = [
+        { ver: 'v1beta', mod: 'gemini-1.5-flash-latest' },
+        { ver: 'v1beta', mod: 'gemini-1.5-flash' },
+        { ver: 'v1', mod: 'gemini-1.5-flash' },
+        { ver: 'v1', mod: 'gemini-pro' }
+      ];
+
       let success = false;
       let text = "";
 
-      for (const model of models) {
+      for (const config of configurations) {
         if (success) break;
         try {
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
+          console.log(`Fusion AI: Trying ${config.mod} on ${config.ver}...`);
+          const response = await fetch(`https://generativelanguage.googleapis.com/${config.ver}/models/${config.mod}:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -199,13 +205,16 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
             const result = await response.json();
             text = result.candidates?.[0]?.content?.parts?.[0]?.text || "L'analyse n'a pas pu être générée.";
             success = true;
+            console.log(`Fusion AI: Success with ${config.mod}`);
+          } else {
+            console.warn(`Fusion AI: ${config.mod} on ${config.ver} returned ${response.status}`);
           }
         } catch (e) {
-          console.error(`Model ${model} failed:`, e);
+          console.error(`Fusion AI: ${config.mod} failed:`, e);
         }
       }
 
-      setAiAnalysis(text || "⚠️ Impossible de générer l'analyse avec Fusion AI pour le moment.");
+      setAiAnalysis(text || "⚠️ Impossible de générer l'analyse avec Fusion AI. Veuillez vérifier si le service Google AI Studio est actif pour votre clé.");
     } catch (error) {
       console.error('Fusion AI Error:', error);
       setAiAnalysis("⚠️ Erreur de connexion au moteur Fusion AI. Vérifiez votre clé API ou la connexion réseau.");
@@ -1152,13 +1161,8 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
       setActiveCriticalAlert(newCritical);
       setNotifiedIncidentIds(prev => new Set(prev).add(newCritical.id));
       
-      // Play a sharp alarm sound
-      try {
-        const audio = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_c8c8a7351b.mp3');
-        audio.play().catch(() => console.log('Audio playback blocked - waiting for user interaction'));
-      } catch (e) {
-        console.error('Audio alert failed', e);
-      }
+      // Audio notification removed due to source 403 / interaction restrictions
+      console.log('Fusion AI Alert: Notification logic triggered.');
     }
   }, [incidentsWithWorkflow, notifiedIncidentIds]);
 
