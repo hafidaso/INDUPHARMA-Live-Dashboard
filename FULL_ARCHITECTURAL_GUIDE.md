@@ -21,16 +21,46 @@ To solve the issue of data volatility, we built a **Capture-and-Merge** algorith
 4. If an action is new, it is "injected" into the persistent history.
 5. **Logic**: This ensures that even if the Google Sheet row is deleted, the Manager still has proof of work in the dashboard.
 
+### 1.3 The SLA & Latency Monitor
+To ensure "Truly Live" data, the SLA monitor calculates performance based on **Actual Interaction Logs**:
+- **MTTA (Mean Time To Acknowledge)**: Instead of a random ratio, this is calculated by subtracting the `incident_detection_time` from the technician's first `started_at` timestamp.
+- **System Latency**: Calculated by measuring the delta between the `generated_at` API timestamp and the current client system time.
+
 ---
 
-## 2. Frontend Engineering (`App.tsx`)
+## 2. Real-Time Escalation Matrix
 
-### 2.1 State Management & Performance
+The escalation system is designed for high-stakes pharmaceutical environments:
+- **Persistent Timestamps**: When an incident is detected, its exact discovery time is stored in `localStorage`. This prevents the "Timer Reset" bug when a manager refreshes the page.
+- **Level Logic**:
+    - **L1 (Immediate)**: Detection + 0min.
+    - **L2 (Supervisor)**: Detection + 10min (if not acknowledged).
+    - **L3 (Manager)**: Detection + 20min.
+    - **L4 (Critical/CEO)**: Detection + 30min.
+
+---
+
+## 3. Fusion AI: Hybrid Predictive Engine
+
+We implemented a **Hybrid Intelligence** model:
+- **Deterministic Layer**: A set of TypeScript-based rule engines that check sensors against USP/ISO thresholds.
+- **Reasoning Layer (Gemini 1.5)**: An asynchronous layer that sends the entire factory state to Google Gemini.
+- **Robust Fallback Strategy**: To handle API rate limits or regional outages, we built a recursive fallback loop:
+    1. Try `v1beta / gemini-1.5-flash-latest` (Fastest/Cheapest)
+    2. Try `v1beta / gemini-1.5-flash`
+    3. Try `v1 / gemini-1.5-flash`
+    4. Try `v1 / gemini-pro` (Most reliable fallback)
+
+---
+
+## 4. Frontend Engineering (`App.tsx`)
+
+### 4.1 State Management & Performance
 To keep the UI fluid while polling data every 3000ms, we used **Advanced React Memoization**:
 - **`useMemo` for Filtering**: The 100+ lines of filtering logic for the "Machines" tab only re-runs when the search query or the raw data changes.
 - **`useCallback` for Event Handlers**: Prevents unnecessary re-renders of complex components like the "Threshold Gauges".
 
-### 2.2 Role-Based State Machine
+### 4.2 Role-Based State Machine
 The application operates as a finite state machine with 4 main states:
 1. **Unauthenticated**: Renders the Glassmorphism login portal.
 2. **Admin Authenticated**: Full access to KPIs, Thresholds, and Reporting.

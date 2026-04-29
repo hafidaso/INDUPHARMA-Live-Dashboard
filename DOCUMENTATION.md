@@ -48,8 +48,26 @@ This module is the core of pharma quality control.
 - **Solution**: The dashboard "captures" completed tasks and moves them into a persistent history array stored in the user's browser. This creates a local audit trail for production managers.
 
 ### 3.4 Technician Workflow
-- **Role-Based Access**: Technicians see a simplified queue of assigned tasks.
+- **Role-Based Access**: Technicians see a prioritized queue of assigned tasks.
 - **Real-Time Acknowledgement**: Clicking "In Progress" or "Done" updates the global machine map instantly, silencing active alarms.
+- **Historique**: A dedicated history view allows technicians to review past work and reopen tasks if necessary.
+
+### 3.5 Fusion AI Engine (Predictive Maintenance)
+- **Hybrid Intelligence**: Combines deterministic GMP rules with the **Fusion AI (Gemini 1.5)** engine.
+- **Strategic Analysis**: Analyzes factory-wide telemetry to provide deep-dive maintenance recommendations on demand.
+- **Resilience**: Features a multi-model fallback system (v1/v1beta) to ensure AI availability.
+
+### 3.6 Real-Time Escalation Matrix
+- **Critical Response Path**: Automatically escalates unacknowledged incidents through 4 organizational levels (Technician -> Supervisor -> Manager -> CEO).
+- **Persistent Tracking**: Uses `localStorage` discovery timestamps to ensure escalation timers remain accurate across page refreshes.
+
+### 3.7 Operational SLA Monitor
+- **Service Level Metrics**: Tracks Mean Time To Acknowledge (MTTA) and system latency using actual millisecond-precision interaction logs.
+- **Live Efficiency**: Visualizes factory throughput and maintenance speed in real-time.
+
+### 3.8 Financial Impact Estimator
+- **Downtime Costing**: Calculates the direct financial loss of equipment downtime based on **ICH Q9 Quality Risk Management**.
+- **Contextual Pricing**: Adjusts impact based on machine criticality and production stage (Sterilization vs. Packaging).
 
 ---
 
@@ -96,7 +114,14 @@ The system expects a webhook response with the following schema:
 - **Styling**: Tailwind CSS v4 (Industrial Dark/Light theme)
 - **Persistence**: Web Storage API (LocalStorage)
 - **Animations**: Framer Motion (Real-time Gauge Movement)
-- **Exports**: jsPDF & html2canvas
+### 5.3 AI Reasoning Layer (Fusion AI)
+- **Engine**: Google Gemini 1.5 (Pro & Flash)
+- **Logic**: Recursive fallback loop across endpoints:
+  1. `v1beta/gemini-1.5-flash-latest`
+  2. `v1beta/gemini-1.5-flash`
+  3. `v1/gemini-1.5-flash`
+  4. `v1/gemini-pro`
+- **Prompt Engineering**: Role-defined as "Fusion AI Expert" with a focus on GMP/FDA regulatory compliance.
 
 ---
 

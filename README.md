@@ -12,29 +12,35 @@ This is a professional-grade React + TypeScript dashboard specifically engineere
 
 ### 📡 Real-Time GMP Monitoring
 - **Live Webhook Integration**: Continuous data synchronization from industrial sensors via secure AppScript/JSON webhooks.
-- **Visual Threshold Gauges**: High-precision monitors comparing live data against **USP (US Pharmacopeia) & ISO 17665** standards for Autoclaves, Cold Storage, and Coating machines.
+- **Visual Threshold Gauges**: High-precision monitors comparing live data against **USP (US Pharmacopeia) & ISO 17665** standards.
 - **Safety Zones**: Real-time visualization of Safe, Warning, and Critical zones for every sensor.
 
-### 🔍 Smart Inventory & Priority Sorting
-- **Intelligent Sorting**: A custom algorithm automatically promotes "En Panne" (Down) machines to the top of the list, ensuring that critical failures are seen first by management.
-- **Dynamic Search**: Instant filtering by machine name, code, or location.
-- **Status Filtering**: One-click isolation of machines in Maintenance, Active, or Failed states.
+### 🧠 Fusion AI (Predictive Maintenance)
+- **Hybrid AI Engine**: Combines **Deterministic GMP Rules** with **Fusion AI (Gemini 1.5)** reasoning to predict critical failures.
+- **On-Demand Strategic Reports**: Generates deep-dive industrial maintenance strategies based on real-time sensor trends.
+- **Robust Fallback System**: Multi-model failover logic (Flash -> Pro) ensures 100% availability of AI insights.
 
-### 📜 Persistent Maintenance Audit Log
-- **Action History Persistence**: Integrated `LocalStorage` layer that preserves the history of technician interventions even after API data is cleared or the browser is refreshed.
-- **Non-Volatile Logs**: Retains up to 100 historical records for audit compliance and performance reviews.
+### 📈 Real-Time Escalation & SLA Monitoring
+- **SLA Monitor**: Truly live tracking of technician response times (MTTA) and system latency based on actual interaction logs.
+- **Escalation Matrix**: Automated multi-level escalation (T+10, T+20, T+30) for critical incidents using persistent timestamps.
+- **Operational Performance**: Instant visualization of factory-wide efficiency (OEE) and SLA compliance.
+
+### 🔍 Smart Inventory & Priority Sorting
+- **Intelligent Sorting**: Automatically promotes "En Panne" (Down) machines to the top of the list.
+- **Dynamic Search**: Instant filtering by machine name, code, or location.
+
+### 💰 Financial Impact Estimation (ICH Q9)
+- **Downtime Cost Estimator**: Real-time financial impact calculation based on **ICH Q9 Quality Risk Management**.
+- **Criticality Multipliers**: Accounts for machine-specific risk factors, batch sensitivity, and regulatory costs.
+
+### 📜 Persistent Maintenance & History
+- **Technician Dashboard History**: Dedicated history tab for completed tasks with "Reopen" functionality.
+- **Action History Persistence**: Integrated `LocalStorage` layer that preserves data across sessions and refreshes.
+- **Dual Webhook Synchronization**: Parallel data broadcasting to multiple endpoints for CMMS/ERP consistency.
 
 ### 📄 Professional PDF Reporting
-- **Branded Exports**: Generate comprehensive PDF reports with one click, including company branding and unique report IDs.
-- **Performance Snapshots**: Automatically summarizes equipment status, active incidents, and AI recommendations into an exportable format for daily briefings.
-
-### 🚨 Critical Alert System
-- **Dual-Layer Alarms**: Instant full-screen red modals combined with audible alarms for `GMP_critique` violations.
-- **Smart Silence**: Alarms intelligently silence once a technician acknowledges the incident and starts the workflow.
-
-### 📊 Performance Analytics (KPIs)
-- **Automated MTTR/Downtime**: Real-time calculation of Mean Time To Repair and cumulative downtime per production zone.
-- **AI Assistant**: Rule-based maintenance assistant providing specific troubleshooting advice based on equipment type and failure signature.
+- **Branded Exports**: Generate comprehensive PDF reports with company branding and unique report IDs.
+- **Performance Snapshots**: Summarizes status, incidents, and AI recommendations into an exportable format.
 
 ---
 
