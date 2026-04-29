@@ -1829,6 +1829,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                         </div>
                       </div>
                     </div>
+                  </Card>
                 </div>
               </div>
 
