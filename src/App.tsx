@@ -1860,7 +1860,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                       {/* Left Side: Zone A & B */}
                       <div className="space-y-8">
                         {/* ZONE A Container */}
-                        <div className="border-2 border-emerald-500/10 rounded-3xl p-6 relative bg-emerald-500/5">
+                        <div className={cn(
+                          "border-2 rounded-3xl p-6 relative transition-all duration-700",
+                          (zoneFilter === 'all' || zoneFilter === 'Zone A') 
+                            ? "border-emerald-500/20 bg-emerald-500/5 opacity-100 scale-100" 
+                            : "border-slate-200 bg-slate-50 opacity-20 scale-[0.98] grayscale pointer-events-none"
+                        )}>
                           <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em]">Zone A — Production High-Care</div>
                           
                           <div className="grid grid-cols-2 gap-6 mt-4">
@@ -1868,7 +1873,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                             <div className="border border-dashed border-emerald-500/20 rounded-2xl p-4">
                               <span className="text-[9px] text-emerald-500/60 font-black uppercase mb-3 block">Salle Propre</span>
                               <div className="space-y-3">
-                                {filteredMachineView.filter(m => m.location?.includes('Salle propre') || (m.location === 'Zone A' && m.type?.includes('HVAC'))).map(m => (
+                                {filteredMachineView.filter(m => (zoneFilter === 'all' || zoneFilter === 'Zone A') && (m.location?.includes('Salle propre') || (m.location === 'Zone A' && m.type?.includes('HVAC')))).map(m => (
                                   <MachineBlock 
                                     key={m.machine_id} 
                                     machine={m} 
@@ -1899,7 +1904,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                                </div>
                              </div>
                              <div className="flex gap-4 overflow-x-auto pb-2">
-                                {filteredMachineView.filter(m => m.location?.includes('Ligne 1') || (m.location === 'Zone A' && !m.type?.includes('HVAC') && !m.type?.includes('Autoclave'))).map(m => (
+                                {filteredMachineView.filter(m => (zoneFilter === 'all' || m.location?.includes(zoneFilter)) && m.location?.includes('Ligne 1')).map(m => (
                                   <MachineBlock 
                                     key={m.machine_id} 
                                     machine={m} 
@@ -1916,7 +1921,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                         </div>
 
                         {/* ZONE B Container */}
-                        <div className="border-2 border-blue-500/10 rounded-3xl p-6 relative bg-blue-500/5">
+                        <div className={cn(
+                          "border-2 rounded-3xl p-6 relative transition-all duration-700",
+                          (zoneFilter === 'all' || zoneFilter === 'Zone B') 
+                            ? "border-blue-500/10 bg-blue-500/5 opacity-100 scale-100" 
+                            : "border-slate-200 bg-slate-50 opacity-20 scale-[0.98] grayscale pointer-events-none"
+                        )}>
                           <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">Zone B — Manufacturing & Primary</div>
                           <div className="grid grid-cols-2 gap-6 mt-4">
                              <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
