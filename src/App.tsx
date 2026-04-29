@@ -127,9 +127,15 @@ const ACTION_TO_INCIDENT: Partial<Record<ActionProgressStatus, IncidentStatus>> 
  * Fully data-driven based on current machine state
  */
 const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick }: { machine: DashboardMachineView, variant?: 'default' | 'blue' | 'red', isDimmed?: boolean, onClick: () => void }) => {
-  const isWarning = machine.latest_severity === 'warning' || machine.latest_severity === 'critical';
   const isFault = machine.machine_status === 'en_panne';
   const isMaintenance = machine.machine_status === 'maintenance';
+  
+  // Logical Value-Based Warning: If value is too high, trigger warning even if status is active
+  const numericValue = parseFloat(machine.latest_value_summary?.match(/\d+(\.\d+)?/)?.[0] || '0');
+  const isValueWarning = (machine.latest_value_summary?.includes('%') && numericValue > 70) || 
+                        (machine.latest_value_summary?.includes('°C') && numericValue > 45);
+  
+  const isWarning = machine.latest_severity === 'warning' || machine.latest_severity === 'critical' || isValueWarning;
 
   let bgColor = 'bg-white';
   let borderColor = 'border-slate-200';
@@ -2032,6 +2038,61 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                             </div>
                          </div>
                       </div>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Filters & Real-time Stats Bar - LOGICAL CONNECTION */}
+                  <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
+                       <div className="flex-1 w-full space-y-4">
+                          <div className="flex items-center gap-2 mb-2">
+                             <Search className="w-4 h-4 text-slate-400" />
+                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quick Filters</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                             <div className="relative flex-1 min-w-[200px]">
+                                <input 
+                                  type="text" 
+                                  placeholder="Chercher une machine..." 
+                                  value={searchQuery}
+                                  onChange={(e) => setSearchQuery(e.target.value)}
+                                  className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-blue-100 transition-all"
+                                />
+                             </div>
+                             <div className="flex bg-slate-50 p-1 rounded-xl">
+                                {['all', 'active', 'en_panne', 'maintenance'].map(s => (
+                                   <button 
+                                     key={s} 
+                                     onClick={() => setStatusFilter(s as any)}
+                                     className={cn(
+                                       "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight transition-all",
+                                       statusFilter === s ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                     )}
+                                   >
+                                     {s === 'all' ? 'Tous' : s}
+                                   </button>
+                                ))}
+                             </div>
+                          </div>
+                       </div>
+
+                       {/* Logical Dynamic Stats */}
+                       <div className="flex gap-6 border-l border-slate-100 pl-8">
+                          <div className="text-center">
+                             <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Actives</p>
+                             <div className="flex items-center gap-2 justify-center">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                <span className="text-2xl font-black text-slate-900">{filteredMachineView.filter(m => m.machine_status === 'active').length}</span>
+                             </div>
+                          </div>
+                          <div className="text-center">
+                             <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Incidents</p>
+                             <div className="flex items-center gap-2 justify-center">
+                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                <span className="text-2xl font-black text-red-600">{filteredMachineView.filter(m => m.machine_status === 'en_panne' || m.latest_severity === 'critical').length}</span>
+                             </div>
+                          </div>
+                       </div>
                     </div>
                   </div>
                 </div>
