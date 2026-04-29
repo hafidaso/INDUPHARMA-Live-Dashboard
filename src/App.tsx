@@ -126,7 +126,7 @@ const ACTION_TO_INCIDENT: Partial<Record<ActionProgressStatus, IncidentStatus>> 
  * Represents a single machine unit on the Factory Floor Map
  * Fully data-driven based on current machine state
  */
-const MachineBlock = ({ machine, variant = 'default', onClick }: { machine: DashboardMachineView, variant?: 'default' | 'blue' | 'red', onClick: () => void }) => {
+const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick }: { machine: DashboardMachineView, variant?: 'default' | 'blue' | 'red', isDimmed?: boolean, onClick: () => void }) => {
   const isWarning = machine.latest_severity === 'warning' || machine.latest_severity === 'critical';
   const isFault = machine.machine_status === 'en_panne';
   const isMaintenance = machine.machine_status === 'maintenance';
@@ -161,10 +161,12 @@ const MachineBlock = ({ machine, variant = 'default', onClick }: { machine: Dash
 
   return (
     <motion.div 
-      whileHover={{ scale: 1.02, y: -2 }}
-      onClick={onClick}
+      animate={{ opacity: isDimmed ? 0.15 : 1, scale: isDimmed ? 0.98 : 1 }}
+      whileHover={!isDimmed ? { scale: 1.02, y: -2 } : {}}
+      onClick={!isDimmed ? onClick : undefined}
       className={cn(
-        "relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 group overflow-hidden h-full min-h-[80px]",
+        "relative p-3 rounded-xl border-2 transition-all duration-500 group overflow-hidden h-full min-h-[80px]",
+        isDimmed ? "cursor-default grayscale" : "cursor-pointer",
         bgColor, borderColor
       )}
     >
@@ -189,8 +191,7 @@ const MachineBlock = ({ machine, variant = 'default', onClick }: { machine: Dash
           {machine.latest_value_summary || 'No data'}
         </p>
       </div>
-      {/* Decorative scan line for active machines */}
-      {machine.machine_status === 'active' && (
+      {!isDimmed && machine.machine_status === 'active' && (
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent h-1/2 w-full -translate-y-full group-hover:animate-[scan_2s_linear_infinite]" />
       )}
     </motion.div>
@@ -1865,7 +1866,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                               <span className="text-[9px] text-emerald-500/60 font-black uppercase mb-3 block">Salle Propre</span>
                               <div className="space-y-3">
                                 {filteredMachineView.filter(m => m.location?.includes('Salle propre') || (m.location === 'Zone A' && m.type?.includes('HVAC'))).map(m => (
-                                  <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                  <MachineBlock 
+                                    key={m.machine_id} 
+                                    machine={m} 
+                                    isDimmed={statusFilter !== 'all' && m.machine_status !== statusFilter}
+                                    onClick={() => setSelectedMachineId(m.machine_id)} 
+                                  />
                                 ))}
                               </div>
                             </div>
@@ -1891,7 +1897,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                              </div>
                              <div className="flex gap-4 overflow-x-auto pb-2">
                                 {filteredMachineView.filter(m => m.location?.includes('Ligne 1') || (m.location === 'Zone A' && !m.type?.includes('HVAC') && !m.type?.includes('Autoclave'))).map(m => (
-                                  <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                  <MachineBlock 
+                                    key={m.machine_id} 
+                                    machine={m} 
+                                    isDimmed={statusFilter !== 'all' && m.machine_status !== statusFilter}
+                                    onClick={() => setSelectedMachineId(m.machine_id)} 
+                                  />
                                 ))}
                                 <div className="min-w-[120px] flex items-center justify-center border border-dashed border-slate-700 rounded-xl opacity-20">
                                    <ArrowRight className="w-6 h-6 text-slate-500" />
@@ -1909,7 +1920,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                                 <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Fabrication</span>
                                 <div className="grid grid-cols-1 gap-3">
                                    {filteredMachineView.filter(m => m.location === 'Zone B' && (m.type?.includes('Fabrication') || m.machine_name.includes('Filtre') || m.machine_name.includes('Cuve'))).map(m => (
-                                      <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                      <MachineBlock 
+                                    key={m.machine_id} 
+                                    machine={m} 
+                                    isDimmed={statusFilter !== 'all' && m.machine_status !== statusFilter}
+                                    onClick={() => setSelectedMachineId(m.machine_id)} 
+                                  />
                                    ))}
                                 </div>
                              </div>
@@ -1917,7 +1933,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                                 <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Ligne 2</span>
                                 <div className="space-y-3">
                                    {filteredMachineView.filter(m => m.location === 'Zone B' && (m.location.includes('Ligne 2') || m.machine_name.includes('Pompe'))).map(m => (
-                                      <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                      <MachineBlock 
+                                    key={m.machine_id} 
+                                    machine={m} 
+                                    isDimmed={statusFilter !== 'all' && m.machine_status !== statusFilter}
+                                    onClick={() => setSelectedMachineId(m.machine_id)} 
+                                  />
                                    ))}
                                 </div>
                              </div>
