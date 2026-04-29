@@ -32,8 +32,9 @@ The dashboard implements a **Strict Mapping Strategy**:
 
 ### 3.1 Global View (Command Center)
 - **KPI Summary**: Real-time cards showing overall site health (Active vs Alert machines).
-- **Machine Map**: A grid view of all equipment. 
-- **Smart Priority Sorting**: Machines with `alerte` or `en_panne` status are automatically hoisted to the top using a custom array sorting algorithm in the `useMemo` hook.
+- **Factory Floor Map**: A data-driven spatial view (Bird's Eye View) that visualizes equipment within their physical zones (Zone A, B, F).
+- **Smart Priority Sorting**: Machines with `alerte` or `en_panne` status are automatically hoisted to the top.
+- **Value-Based Predictive Alerts**: Intelligent logic that triggers warnings based on sensor thresholds (e.g., Humidity > 70% or Temp > 45°C) even if status is "active".
 
 ### 3.2 GMP Compliance Monitor (Seuils)
 This module is the core of pharma quality control.
@@ -111,7 +112,8 @@ The system expects a webhook response with the following schema:
 ### 5.2 Technology Stack
 - **Framework**: React 19 (Main UI)
 - **Build System**: Vite 6 (Fast Refresh)
-- **Styling**: Tailwind CSS v4 (Industrial Dark/Light theme)
+- **Styling**: Tailwind CSS v4 (Pharma-Light Enterprise Theme)
+- **Localization**: Full `fr-MA` (Morocco) support with `Africa/Casablanca` timezone synchronization.
 - **Persistence**: Web Storage API (LocalStorage)
 - **Animations**: Framer Motion (Real-time Gauge Movement)
 ### 5.3 AI Reasoning Layer (Fusion AI)

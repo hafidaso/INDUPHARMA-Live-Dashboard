@@ -20,6 +20,11 @@ This is a professional-grade React + TypeScript dashboard specifically engineere
 - **On-Demand Strategic Reports**: Generates deep-dive industrial maintenance strategies based on real-time sensor trends.
 - **Robust Fallback System**: Multi-model failover logic (Flash -> Pro) ensures 100% availability of AI insights.
 
+### 🗺️ Factory Floor Live Map (Spatial Topology)
+- **Bird's Eye View**: Real-time spatial visualization of the factory floor, mapping machines to their physical zones (Production, Packaging, Utilities).
+- **Zone Focus Mode**: Interactive filtering that dims non-selected areas to provide high-focus monitoring.
+- **Dynamic Status Blocks**: Machine blocks that pulsate during alerts and reflect real-time sensor measurements.
+
 ### 📈 Real-Time Escalation & SLA Monitoring
 - **SLA Monitor**: Truly live tracking of technician response times (MTTA) and system latency based on actual interaction logs.
 - **Escalation Matrix**: Automated multi-level escalation (T+10, T+20, T+30) for critical incidents using persistent timestamps.
@@ -57,7 +62,8 @@ The system is engineered to align with global pharmaceutical and quality standar
 ## 📱 Industrial Responsive Design
 - **Tablet Optimized**: Specially designed for industrial tablets used by floor technicians.
 - **Mobile First**: Full functionality preserved on mobile devices for managers on the move.
-- **Glassmorphism UI**: High-contrast, premium interface designed for readability in industrial lighting conditions.
+- **Pharma-Light Design System**: A clean, high-contrast white-theme interface designed for maximum eye comfort and professional pharmaceutical aesthetics.
+- **Micro-Animations**: Real-time scan lines and pulsing indicators for "active" and "faulty" equipment.
 
 ---
 

@@ -80,6 +80,12 @@ The "Seuils" gauges are not static images. They are **Dynamic Vector Components*
 - Built with `framer-motion`, they calculate the pointer position relative to the critical range in real-time.
 - This provides "Pre-incident Awareness"—managers can see a value slowly creeping toward the red zone before an alarm even sounds.
 
+### 3.3 Spatial Mapping Logic (The Factory Map)
+The "Factory Floor Live Map" uses a sophisticated CSS Grid and Flexbox architecture to represent physical floor plans:
+- **Dynamic Focusing**: When a zone or status filter is applied, the system uses "Visual Dimming" (opacity-10) to isolate relevant machines without losing the global context.
+- **Topographical Integrity**: Machines are logically grouped into sub-zones (Salle Propre, Ligne 1, etc.) ensuring a responsive layout that adapts to any screen size while maintaining topographical integrity.
+- **Value-Driven Styling**: The UI layer re-evaluates sensor data to override static statuses, providing a more "Logical" and predictive alerting system for GMP environments.
+
 ---
 
 ## 4. Reporting & Export Engine
