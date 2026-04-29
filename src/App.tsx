@@ -275,10 +275,18 @@ export default function App() {
     const saved = localStorage.getItem('indupharma_kpi_history');
     return saved ? JSON.parse(saved) : [];
   });
+  const [costPerMinute, setCostPerMinute] = useState<number>(() => {
+    const saved = localStorage.getItem('indupharma_cost_per_minute');
+    return saved ? parseFloat(saved) : 500;
+  });
 
   useEffect(() => {
     localStorage.setItem('indupharma_kpi_history', JSON.stringify(kpiHistory.slice(-100)));
   }, [kpiHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('indupharma_cost_per_minute', costPerMinute.toString());
+  }, [costPerMinute]);
 
   const selectedMachine = useMemo(() => {
     if (!data || !selectedMachineId) return null;
@@ -1967,6 +1975,57 @@ export default function App() {
                       );
                     });
                   })()}
+                </div>
+              </Card>
+
+              {/* Cost Impact Estimator */}
+              <Card title="Cost Impact Estimator" icon={TrendingUp}>
+                <div className="flex flex-col md:flex-row gap-6 items-center">
+                  <div className="flex-1 space-y-4 w-full">
+                    <p className="text-sm text-slate-500 font-medium">
+                      Estimez l'impact financier direct du temps d'arrêt (Downtime) des équipements de production en temps réel.
+                    </p>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Coût par minute (MAD)</label>
+                       <div className="relative">
+                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">MAD</span>
+                         <input 
+                            type="number" 
+                            min="0"
+                            step="10"
+                            value={costPerMinute}
+                            onChange={(e) => setCostPerMinute(parseFloat(e.target.value) || 0)}
+                            className="w-full bg-white border border-slate-200 rounded-lg py-2.5 pl-12 pr-4 text-slate-800 font-black focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-inner"
+                         />
+                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 w-full flex gap-4">
+                    <div className="flex-1 bg-white border-2 border-slate-100 rounded-2xl p-5 text-center flex flex-col justify-center shadow-sm">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Downtime Today</p>
+                       <p className="text-3xl font-black text-slate-800">
+                         {(() => {
+                            const downtime = (data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0);
+                            return downtime;
+                         })()}
+                         <span className="text-sm text-slate-400 ml-1">min</span>
+                       </p>
+                    </div>
+                    <div className="flex-1 bg-red-50 border-2 border-red-200 rounded-2xl p-5 text-center flex flex-col justify-center shadow-sm relative overflow-hidden">
+                       <div className="absolute top-0 right-0 p-2 opacity-10">
+                          <TrendingUp className="w-16 h-16 text-red-500" />
+                       </div>
+                       <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1 relative z-10">Estimated Impact</p>
+                       <p className="text-3xl lg:text-4xl font-black text-red-600 tracking-tight relative z-10">
+                         {(() => {
+                            const downtime = (data.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0);
+                            return new Intl.NumberFormat('fr-MA').format(downtime * costPerMinute);
+                         })()}
+                       </p>
+                       <p className="text-xs text-red-500 font-bold mt-1 relative z-10">MAD</p>
+                    </div>
+                  </div>
                 </div>
               </Card>
             </motion.div>
