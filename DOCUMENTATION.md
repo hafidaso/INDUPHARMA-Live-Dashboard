@@ -141,14 +141,17 @@ The logic implemented in the INDUPHARMA Dashboard is aligned with the following 
 ### 8.1 Quality Risk Management (Cost Impact Logic)
 - **[ICH Q9 Quality Risk Management](https://www.ema.europa.eu/en/documents/scientific-guideline/ich-q9-quality-risk-management-step-5_en.pdf)**: Foundation for the weighted risk multipliers used in the Cost Impact Estimator.
 - **[ISPE Guide: Maintenance](https://ispe.org/publications/guidance-documents/maintenance)**: Best practices for industrial asset management in GMP environments.
+- **[WHO TRS No. 961, Annex 9](https://apps.who.int/iris/handle/10665/44543)**: Guide to good storage practices for pharmaceuticals.
 
 ### 8.2 Data Integrity (Persistence & Audit Logs)
 - **[FDA 21 CFR Part 11](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/part-11-electronic-records-electronic-signatures-scope-and-application)**: Guidelines for electronic records and audit trails, ensuring data reliability.
+- **[EMA Annex 11 (Computerised Systems)](https://www.ema.europa.eu/en/documents/scientific-guideline/annex-11-computerised-systems_en.pdf)**: European regulations for data integrity in manufacturing.
 - **[ALCOA+ Principles](https://www.who.int/publications/m/item/annex-5-guidance-on-good-data-and-record-management-practices)**: Ensuring data is Attributable, Legible, Contemporaneous, Original, and Accurate.
 
 ### 8.3 Equipment Specific Standards (Threshold Gauges)
-- **[ISO 17665 (Moist Heat Sterilization)](https://www.iso.org/standard/36732.html)**: Reference for Autoclave temperature/pressure validation.
-- **[USP <659> Packaging and Storage](https://www.usp.org/sites/default/files/usp/document/our-work/customized-outreach/packaging-storage-requirements.pdf)**: Reference for Cold Room (2-8°C) and Controlled Room Temperature (CRT) monitoring.
+- **[ISO 17665 (Moist Heat Sterilization)](https://www.iso.org/standard/36732.html)**: Reference for Autoclave temperature/pressure validation (Standard hold: 121-124°C).
+- **[EN 285:2015](https://www.en-standard.eu/din-en-285-sterilization-steam-sterilizers-large-sterilizers/)**: Performance requirements and test methods for large steam sterilizers.
+- **[USP <659> Packaging and Storage](https://www.usp.org/sites/default/files/usp/document/our-work/customized-outreach/packaging-storage-requirements.pdf)**: Strict reference for Cold Room (2-8°C) and Controlled Room Temperature (CRT) monitoring.
 
 ---
 

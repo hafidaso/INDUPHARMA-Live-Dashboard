@@ -333,7 +333,7 @@ export async function fetchSheetData() {
       // Industrial Pharma Standards Mapping
       if (type.includes('stérilisateur') || code.includes('autoclave')) {
         thresholds.push(
-          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'temperature', min_value: 115, max_value: 134, critical_value: 138, unit: '°C' },
+          { id: `T-${e.equipement_id}-1`, machine_id: e.equipement_id, sensor_type: 'temperature', min_value: 121, max_value: 124, critical_value: 127, unit: '°C' },
           { id: `T-${e.equipement_id}-2`, machine_id: e.equipement_id, sensor_type: 'pression', min_value: 0.8, max_value: 2.2, critical_value: 2.6, unit: 'bar' }
         );
       } else if (type.includes('réfrigérée') || code.includes('chambre_froide')) {
