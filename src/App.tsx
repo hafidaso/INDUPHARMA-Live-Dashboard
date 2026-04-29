@@ -1853,6 +1853,43 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                   </table>
                 </div>
               </Card>
+
+              {/* KPI Quick-Access Card → links to KPIs tab */}
+              <button onClick={() => setActiveTab('KPIs')} className="w-full text-left group">
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 border border-slate-700 hover:from-slate-800 hover:to-slate-700 transition-all duration-300 shadow-xl">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/20 rounded-lg">
+                        <BarChart3 className="w-5 h-5 text-blue-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Performance KPIs — Vue Rapide</h3>
+                        <p className="text-[10px] text-slate-400 font-medium">Données live • Cliquez pour l’analyse complète</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest group-hover:text-blue-300 transition-colors">
+                      <span>Voir tout</span>
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: 'MTTR Moyen', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mttr_minutes, 0)) / ((data?.kpiLogs ?? []).length || 1))} min`, icon: Clock, color: 'text-amber-400' },
+                      { label: 'Downtime Total', value: `${(data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0)} min`, icon: TrendingDown, color: 'text-red-400' },
+                      { label: 'MTBF Moyen', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mtbf_hours, 0)) / ((data?.kpiLogs ?? []).length || 1))} h`, icon: TrendingUp, color: 'text-emerald-400' },
+                      { label: 'Closure Rate', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.closure_rate, 0)) / ((data?.kpiLogs ?? []).length || 1))}%`, icon: CheckCircle2, color: 'text-blue-400' }
+                    ].map((kpi, i) => (
+                      <div key={i} className="bg-white/5 rounded-xl p-4 border border-white/10">
+                        <div className="flex items-center gap-2 mb-2">
+                          <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</span>
+                        </div>
+                        <p className={`text-xl font-black ${kpi.color}`}>{kpi.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </button>
             </motion.div>
           )}
 
