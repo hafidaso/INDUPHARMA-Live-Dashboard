@@ -15,7 +15,8 @@ import {
   DashboardKpiSummary,
   MachineStatus,
   ReadingStatus,
-  Severity
+  Severity,
+  IncidentStatus
 } from '../types';
 
 const PRODUCTION_STATUS_URL =

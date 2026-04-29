@@ -62,9 +62,12 @@ import {
   ReferenceLine
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { jsPDF } from 'jspdf';
+import { Badge } from './components/ui/Badge';
+import { Card } from './components/ui/Card';
+import { SafeChartContainer } from './components/ui/SafeChartContainer';
+import { KPICard } from './components/ui/KPICard';
+import { cn, getStatusColor } from './utils/statusColors';
 
 import { 
   fetchSheetData, 
@@ -113,136 +116,6 @@ const ACTION_STATUS_LABEL: Record<ActionProgressStatus, string> = {
 const ACTION_TO_INCIDENT: Partial<Record<ActionProgressStatus, IncidentStatus>> = {
   done: 'closed',
   in_progress: 'in_progress',
-};
-
-// Utility for tailwind classes
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
-// --- Status Color Helpers ---
-const getStatusColor = (status: string | undefined) => {
-  const s = String(status).toLowerCase();
-  if (['active', 'normal', 'low', 'closed', 'true'].includes(s)) return 'emerald';
-  if (['maintenance', 'warning', 'medium', 'in_progress'].includes(s)) return 'amber';
-  if (['en_panne', 'critical', 'high', 'open', 'escalated'].includes(s)) return 'red';
-  if (['inactive', 'error', 'false'].includes(s)) return 'slate';
-  return 'slate';
-};
-
-const getStatusBadgeClass = (status: string | undefined) => {
-  const color = getStatusColor(status);
-  return cn(
-    "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap",
-    color === 'emerald' && "bg-emerald-50 text-emerald-600 border-emerald-200",
-    color === 'amber' && "bg-amber-50 text-amber-600 border-amber-200",
-    color === 'red' && "bg-red-50 text-red-600 border-red-200",
-    color === 'slate' && "bg-slate-50 text-slate-500 border-slate-200"
-  );
-};
-
-// --- Custom Components ---
-
-const Badge = ({ children, status }: { children: React.ReactNode, status: string | undefined }) => (
-  <span className={getStatusBadgeClass(status)}>
-    {children}
-  </span>
-);
-
-const Card: React.FC<{ children: React.ReactNode, className?: string, title?: string, icon?: any }> = ({ children, className, title, icon: Icon }) => (
-  <div className={cn("bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all", className)}>
-    {title && (
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-        <h3 className="text-slate-800 font-bold text-sm flex items-center gap-2">
-          {Icon && <Icon className="w-4 h-4 text-blue-600" />}
-          {title}
-        </h3>
-      </div>
-    )}
-    <div className="p-5">
-      {children}
-    </div>
-  </div>
-);
-
-const SafeChartContainer: React.FC<{ className: string; children: React.ReactNode }> = ({ className, children }) => {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const element = hostRef.current;
-    if (!element) return;
-
-    let rafId = 0;
-    if (typeof ResizeObserver === 'undefined') {
-      const waitForLayout = () => {
-        const rect = element.getBoundingClientRect();
-        if (rect.width > 10 && rect.height > 10) {
-          setReady(true);
-          return;
-        }
-        rafId = window.requestAnimationFrame(waitForLayout);
-      };
-      waitForLayout();
-      return () => window.cancelAnimationFrame(rafId);
-    }
-
-    const checkSize = () => {
-      const rect = element.getBoundingClientRect();
-      setReady(rect.width > 10 && rect.height > 10);
-    };
-
-    // Delay first measurement one frame to avoid transient -1 values during animated mount.
-    rafId = window.requestAnimationFrame(checkSize);
-    const observer = new ResizeObserver(checkSize);
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      window.cancelAnimationFrame(rafId);
-    };
-  }, []);
-
-  return (
-    <div ref={hostRef} className={className}>
-      {ready ? (
-        <ResponsiveContainer width="100%" height="100%" minWidth={10} minHeight={10}>
-          {children}
-        </ResponsiveContainer>
-      ) : null}
-    </div>
-  );
-};
-
-interface KPICardProps extends DashboardKpiSummary {
-  icon: any;
-  key?: number | string;
-}
-
-const KPICard = ({ metric, value, unit, status, note, icon: Icon }: KPICardProps) => {
-  const color = getStatusColor(status);
-  return (
-    <Card className="flex flex-col h-full bg-white border-l-4" style={{ borderLeftColor: `var(--color-${color}-500)` }}>
-      <div className="flex justify-between items-start mb-4">
-        <div className={cn("p-2 rounded-lg", 
-          color === 'emerald' && "bg-emerald-100 text-emerald-600",
-          color === 'amber' && "bg-amber-100 text-amber-600",
-          color === 'red' && "bg-red-100 text-red-600",
-          color === 'slate' && "bg-slate-100 text-slate-600"
-        )}>
-          <Icon className="w-5 h-5" />
-        </div>
-        <Badge status={status}>{status}</Badge>
-      </div>
-      <div>
-        <h4 className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{metric}</h4>
-        <div className="flex items-baseline gap-1 mt-1">
-          <span className="text-2xl font-black text-slate-900">{value}</span>
-          <span className="text-slate-500 text-xs font-bold">{unit}</span>
-        </div>
-        <p className="text-[10px] text-slate-400 mt-2 italic font-medium">{note}</p>
-      </div>
-    </Card>
-  );
 };
 
 // --- Main App ---
@@ -653,7 +526,7 @@ export default function App() {
     if (!data?.machineView) return [];
     return data.machineView.map((mv: DashboardMachineView) => {
       const incident = incidentsWithWorkflow.find(i => i.machine_id === mv.machine_id);
-      const isClosed = incident && (incident.status === 'closed' || incident.status === 'resolved');
+      const isClosed = incident && incident.status === 'closed';
       return {
         ...mv,
         active_incident: isClosed ? undefined : mv.active_incident,
@@ -1326,13 +1199,15 @@ export default function App() {
   );
 
   if (loading && !data) return (
-    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center">
+    <div className="min-h-screen bg-[#F7F4EE] flex flex-col items-center justify-center">
+      <img src="/logo.png" alt="INDUPHARMA" className="h-16 w-auto mb-4 animate-pulse" />
       <RefreshCcw className="w-8 h-8 text-blue-600 animate-spin" />
     </div>
   );
 
   if (!data) return (
-    <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-[#F7F4EE] flex flex-col items-center justify-center px-6">
+      <img src="/logo.png" alt="INDUPHARMA" className="h-16 w-auto mb-6" />
       <div className="bg-white border border-red-200 rounded-xl p-6 text-center max-w-md">
         <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-3" />
         <h2 className="text-slate-900 font-black text-lg">Data unavailable</h2>
