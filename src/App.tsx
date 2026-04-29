@@ -3094,10 +3094,19 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
           <img src="/logo.png" alt="INDUPHARMA" className="h-12 w-auto" />
           <span className="text-xs font-black uppercase tracking-widest">© 2026 INDUPHARMA Industrial System</span>
         </div>
-        <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest mt-6 md:mt-0">
-          <button onClick={() => setActiveTab('Incidents')} className="hover:text-blue-600 transition-colors outline-none cursor-pointer">Safety Protocols</button>
-          <button onClick={() => setActiveTab('Seuils')} className="hover:text-blue-600 transition-colors outline-none cursor-pointer">GMP Compliance</button>
-          <a href="mailto:support@indupharma.local" className="hover:text-blue-600 transition-colors">System Support</a>
+        <div className="flex flex-col items-center md:items-end gap-3 mt-6 md:mt-0">
+          <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-tighter text-slate-300">
+            <span className="text-slate-500">Regulatory Compliance:</span>
+            <a href="https://www.ema.europa.eu/en/documents/scientific-guideline/ich-q9-quality-risk-management-step-5_en.pdf" target="_blank" rel="noreferrer" className="hover:text-blue-500 transition-colors border-b border-slate-200 pb-0.5">ICH Q9</a>
+            <a href="https://www.fda.gov/regulatory-information/search-fda-guidance-documents/part-11-electronic-records-electronic-signatures-scope-and-application" target="_blank" rel="noreferrer" className="hover:text-blue-500 transition-colors border-b border-slate-200 pb-0.5">FDA 21 CFR</a>
+            <a href="https://ispe.org/publications/guidance-documents/gamp-5" target="_blank" rel="noreferrer" className="hover:text-blue-500 transition-colors border-b border-slate-200 pb-0.5">ISPE GAMP 5</a>
+            <a href="https://www.usp.org/sites/default/files/usp/document/our-work/customized-outreach/packaging-storage-requirements.pdf" target="_blank" rel="noreferrer" className="hover:text-blue-500 transition-colors border-b border-slate-200 pb-0.5">USP &lt;659&gt;</a>
+          </div>
+          <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest">
+            <button onClick={() => setActiveTab('Incidents')} className="hover:text-blue-600 transition-colors outline-none cursor-pointer">Safety Protocols</button>
+            <button onClick={() => setActiveTab('Seuils')} className="hover:text-blue-600 transition-colors outline-none cursor-pointer">GMP Compliance</button>
+            <a href="mailto:support@indupharma.local" className="hover:text-blue-600 transition-colors">System Support</a>
+          </div>
         </div>
       </footer>
     </div>
