@@ -152,6 +152,14 @@ export default function App() {
     const saved = localStorage.getItem('indupharma_cost_per_minute');
     return saved ? parseFloat(saved) : 500;
   });
+  const [incidentDetectionTimes, setIncidentDetectionTimes] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('indupharma_incident_detection_times');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('indupharma_incident_detection_times', JSON.stringify(incidentDetectionTimes));
+  }, [incidentDetectionTimes]);
 
   useEffect(() => {
     localStorage.setItem('indupharma_kpi_history', JSON.stringify(kpiHistory.slice(-100)));
@@ -636,6 +644,21 @@ export default function App() {
     try {
       const result = await fetchSheetData();
       setData(result);
+      
+      // Sync Incident Detection Times (Truly Real Tracking)
+      if (result.incidents && result.incidents.length > 0) {
+        setIncidentDetectionTimes(prev => {
+          const next = { ...prev };
+          let changed = false;
+          result.incidents.forEach((inc: any) => {
+            if (!next[inc.id]) {
+              next[inc.id] = new Date().toISOString();
+              changed = true;
+            }
+          });
+          return changed ? next : prev;
+        });
+      }
       
       // Accumulate history point
       if (result.machines && result.machines.length > 0) {
@@ -1287,39 +1310,48 @@ export default function App() {
 
           <Card title="File d'Attente (Active Queue)" icon={AlertTriangle}>
             <div className="space-y-4">
-              {technicianAlerts.filter((a: any) => a.actionStatus !== 'done').map((alert: any) => (
-                <div key={alert.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-                    <div>
-                      <p className="text-sm font-black text-slate-900">{alert.machine_name}</p>
-                      <p className="text-xs text-slate-500">{alert.description}</p>
+              {technicianAlerts.filter((a: any) => a.actionStatus !== 'done').map((alert: any) => {
+                const detectionTime = incidentDetectionTimes[alert.id];
+                const elapsedMin = detectionTime ? Math.floor((new Date().getTime() - new Date(detectionTime).getTime()) / 60000) : 0;
+                return (
+                  <div key={alert.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-black text-slate-900 uppercase">{alert.machine_name}</h4>
+                          <span className="text-[9px] font-bold text-slate-400">
+                            Détecté il y a {elapsedMin} min
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">{alert.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge status={alert.severity}>{alert.severity}</Badge>
+                        <Badge status={alert.actionStatus}>{ACTION_STATUS_LABEL[alert.actionStatus]}</Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge status={alert.severity}>{alert.severity}</Badge>
-                      <Badge status={alert.actionStatus}>{ACTION_STATUS_LABEL[alert.actionStatus]}</Badge>
+                    <div className="flex flex-wrap gap-2">
+                      {(['done', 'in_progress', 'blocked', 'not_yet'] as ActionProgressStatus[]).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => updateIncidentProgress(alert.id, s, authUser.name)}
+                          className={cn(
+                            'px-3 py-1.5 rounded-lg border text-xs font-black uppercase transition-all',
+                            alert.actionStatus === s
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-105'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          )}
+                        >
+                          {ACTION_STATUS_LABEL[s]}
+                        </button>
+                      ))}
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-3">
+                      Technician: {alert.assignedTechnician} | Updated: {alert.updatedAt}
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {(['done', 'in_progress', 'blocked', 'not_yet'] as ActionProgressStatus[]).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => updateIncidentProgress(alert.id, s, authUser.name)}
-                        className={cn(
-                          'px-3 py-1.5 rounded-lg border text-xs font-black uppercase transition-all',
-                          alert.actionStatus === s
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-105'
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        )}
-                      >
-                        {ACTION_STATUS_LABEL[s]}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-3">
-                    Technician: {alert.assignedTechnician} | Updated: {alert.updatedAt}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
               {technicianAlerts.filter((a: any) => a.actionStatus !== 'done').length === 0 && (
                 <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                   <CheckCircle2 className="w-10 h-10 text-emerald-500/50 mx-auto mb-2" />
@@ -2507,14 +2539,15 @@ export default function App() {
                           const progress = incidentProgress[incident.id];
                           const isAcknowledged = progress?.status === 'in_progress' || progress?.status === 'done';
 
-                          // Time elapsed calculation (demo: based on detection timestamp or use simulated)
+                          // Time elapsed calculation (Truly Real Tracking)
                           let elapsedMin = 0;
+                          const firstDetected = incidentDetectionTimes[incident.id] || incident.detected_at;
                           try {
-                            const detectedAt = new Date(incident.detected_at);
-                            elapsedMin = isNaN(detectedAt.getTime())
-                              ? (incident.status === 'escalated' ? 22 : incident.status === 'in_progress' ? 8 : 14)
-                              : Math.floor((Date.now() - detectedAt.getTime()) / 60000);
-                          } catch { elapsedMin = 14; }
+                            const detectedAt = new Date(firstDetected);
+                            elapsedMin = Math.max(0, Math.floor((Date.now() - detectedAt.getTime()) / 60000));
+                          } catch { 
+                            elapsedMin = 0; 
+                          }
 
                           // Determine current escalation level
                           let currentLevel = 1;
