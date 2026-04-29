@@ -92,7 +92,7 @@ import {
 } from './types';
 
 type ActionProgressStatus = 'done' | 'in_progress' | 'blocked' | 'not_yet';
-type TabType = 'Vue Globale' | 'Machines' | 'Capteurs' | 'Incidents' | 'Maintenance' | 'KPIs' | 'Seuils' | 'Techniciens' | 'Predictive';
+type TabType = 'Vue Globale' | 'Incidents' | 'Seuils' | 'Predictive' | 'Machines' | 'Capteurs' | 'Maintenance' | 'Techniciens' | 'KPIs';
 
 type DemoUser = {
   email: string;
@@ -1542,14 +1542,14 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
         <div className="flex items-center gap-1 p-1 bg-white rounded-xl border border-slate-200 overflow-x-auto no-scrollbar shadow-sm">
           {[
             { id: 'Vue Globale', icon: LayoutDashboard },
+            { id: 'Incidents', icon: AlertTriangle },
+            { id: 'Seuils', icon: ListFilter },
+            { id: 'Predictive', icon: BrainCircuit },
             { id: 'Machines', icon: Box },
             { id: 'Capteurs', icon: Smartphone },
-            { id: 'Incidents', icon: AlertTriangle },
             { id: 'Maintenance', icon: Wrench },
-            { id: 'KPIs', icon: BarChart3 },
-            { id: 'Seuils', icon: ListFilter },
             { id: 'Techniciens', icon: UserCheck },
-            { id: 'Predictive', icon: BrainCircuit }
+            { id: 'KPIs', icon: BarChart3 }
           ].map(tab => (
             <button
               key={tab.id}
