@@ -2078,19 +2078,21 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                           </div>
                        </div>
 
-                       {/* Logical Dynamic Stats - NOW SYNCED */}
+                       {/* Logical Dynamic Stats - NOW INDEPENDENT OF FILTERS */}
                        <div className="flex gap-6 border-l border-slate-100 pl-8">
                           <div className="text-center">
                              <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Actives</p>
                              <div className="flex items-center gap-2 justify-center">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                <span className="text-2xl font-black text-slate-900">{filteredMachineView.filter(m => m.machine_status === 'active').length}</span>
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                                <span className="text-2xl font-black text-slate-900">
+                                   {machineViewWithWorkflow.filter(m => m.machine_status === 'active' && (zoneFilter === 'all' || m.location?.includes(zoneFilter))).length}
+                                </span>
                              </div>
                           </div>
                           <div className="text-center">
                              <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Incidents</p>
                              <div className="flex items-center gap-2 justify-center">
-                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.4)]" />
                                 <span className="text-2xl font-black text-red-600">{openAlertCount}</span>
                              </div>
                           </div>
