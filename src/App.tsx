@@ -742,6 +742,8 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
     return result;
   }, [machineViewWithWorkflow, searchQuery, statusFilter, zoneFilter]);
 
+  const openAlertCount = (data?.incidents?.length || 0);
+
   const filteredMachines = useMemo(() => {
     if (!data?.machines) return [];
     let result = [...data.machines];
