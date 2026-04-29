@@ -309,16 +309,16 @@ export default function App() {
       await fetch('https://fusion-ai-api.medifus.dev/webhooks/webhook-rxho8iyi2613mbn6fwi5drzj/technicien', {
         method: 'POST',
         mode: 'no-cors', // Bypass CORS for one-way webhook
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
           incident_id: incidentId,
           status,
           technician,
           updated_at: new Date().toISOString(),
           action: 'technician_update'
-        })
+        }).toString()
       });
-      console.log(`[Webhook] Sent update for ${incidentId}: ${status} (no-cors mode)`);
+      console.log(`[Webhook] Sent update for ${incidentId}: ${status} (URL Encoded)`);
     } catch (e) {
       console.error('[Webhook Error] Failed to send update:', e);
     }
