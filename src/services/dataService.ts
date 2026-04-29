@@ -312,7 +312,9 @@ async function fetchProductionStatus(): Promise<ProductionResponse> {
 // ---------------------------------------------------------------------------
 export async function fetchSheetData() {
   try {
+    const fetchStart = Date.now();
     const payload = await fetchProductionStatus();
+    const apiLatencyMs = Date.now() - fetchStart;
     const machines: Machine[] = payload.equipements.map((e) => ({
       id: e.equipement_id,
       code_machine: e.code_machine ?? undefined,
@@ -562,6 +564,7 @@ export async function fetchSheetData() {
       histories,
       lastUpdate:  new Date().toLocaleTimeString('fr-FR'),
       isConnected: true,
+      apiLatencyMs,
     };
   } catch (error) {
     console.error("Data fetch error (webhook only):", error);

@@ -1953,11 +1953,13 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                     const slaItems = [
                       {
                         label: 'Alert Detection (Latency)',
-                        description: 'Délai réel entre le rafraîchissement API et l\'affichage',
+                        description: 'Délai réel mesuré entre la requête Webhook et la réception des données',
                         target: 5, targetUnit: 'sec',
-                        current: loading ? 0 : 3, currentUnit: 'sec',
-                        percent: 60, ok: true,
-                        source: 'Real-time Webhook Polling latency'
+                        current: loading ? '...' : ((data?.apiLatencyMs ?? 3000) / 1000).toFixed(2),
+                        currentUnit: 'sec',
+                        percent: loading ? 0 : Math.min(100, Math.round(((data?.apiLatencyMs ?? 3000) / 1000 / 5) * 100)),
+                        ok: !loading && (data?.apiLatencyMs ?? 9999) <= 5000,
+                        source: `Real measured: ${data?.apiLatencyMs ?? '?'} ms from Webhook response`
                       },
                       {
                         label: 'Technician Acknowledgement',
