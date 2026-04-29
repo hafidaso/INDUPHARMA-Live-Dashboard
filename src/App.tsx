@@ -1355,19 +1355,109 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
           </div>
         </header>
         <main className="max-w-6xl mx-auto p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <p className="text-[10px] uppercase font-black text-slate-400">Total Alerts</p>
-              <p className="text-2xl font-black text-slate-900 mt-1">{technicianAlerts.length}</p>
-            </Card>
-            <Card>
-              <p className="text-[10px] uppercase font-black text-slate-400">Open / Processing</p>
-              <p className="text-2xl font-black text-amber-600 mt-1">{openAlertCount}</p>
-            </Card>
-            <Card>
-              <p className="text-[10px] uppercase font-black text-slate-400">Last Update</p>
-              <p className="text-sm font-black text-slate-900 mt-1">{data.lastUpdate}</p>
-            </Card>
+          {/* Technician Performance & Mission Diagnostics */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 border-none">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="w-4 h-4 text-blue-100" />
+                    <p className="text-[10px] uppercase font-black text-blue-100">Performance Score</p>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <p className="text-3xl font-black text-white">
+                      {Math.max(0, 100 - (openAlertCount * 5))}
+                      <span className="text-xs ml-1 opacity-60">%</span>
+                    </p>
+                    <span className="text-[9px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full uppercase">Optimal</span>
+                  </div>
+                </Card>
+                <Card>
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    <p className="text-[10px] uppercase font-black text-slate-400">Open Alerts</p>
+                  </div>
+                  <p className="text-3xl font-black text-slate-900">{openAlertCount}</p>
+                </Card>
+                <Card>
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    <p className="text-[10px] uppercase font-black text-slate-400">Resolved Today</p>
+                  </div>
+                  <p className="text-3xl font-black text-emerald-600">
+                    {technicianAlerts.filter((a: any) => a.actionStatus === 'done').length}
+                  </p>
+                </Card>
+              </div>
+
+              {/* Active Mission Diagnostics (ONLY shows when a machine is In Progress) */}
+              {(() => {
+                const activeAlert = technicianAlerts.find((a: any) => a.actionStatus === 'in_progress');
+                if (!activeAlert) return null;
+                const machineData = (data?.machineView ?? []).find((mv: any) => mv.machine_id === activeAlert.id);
+                
+                return (
+                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                    <Card className="border-indigo-200 bg-indigo-50/30 overflow-hidden relative">
+                      <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <Activity className="w-24 h-24 text-indigo-500" />
+                      </div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-indigo-600 rounded-lg">
+                          <Cpu className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900 uppercase">Mission Diagnostic En Direct</h3>
+                          <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest animate-pulse">
+                            Surveillance active: {activeAlert.machine_name}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {[
+                          { label: 'Status Global', value: machineData?.machine_status ?? 'N/A', icon: ShieldCheck, color: 'text-indigo-600' },
+                          { label: 'Diagnostic API', value: machineData?.latest_value_summary ?? 'Aucune donnée', icon: Smartphone, color: 'text-slate-600' },
+                          { label: 'Sévérité', value: machineData?.latest_severity ?? 'Low', icon: AlertTriangle, color: 'text-amber-600' },
+                          { label: 'Dernier Flux', value: toMATime(), icon: Clock, color: 'text-slate-400' }
+                        ].map((stat, i) => (
+                          <div key={i} className="bg-white p-3 rounded-xl border border-indigo-100 shadow-sm">
+                            <div className="flex items-center gap-2 mb-1">
+                              <stat.icon className={`w-3 h-3 ${stat.color}`} />
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{stat.label}</span>
+                            </div>
+                            <p className={`text-xs font-black truncate ${stat.color}`}>{stat.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })()}
+            </div>
+            
+            <div className="space-y-4">
+              <Card title="Quick Sync" icon={Database}>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">API Status</span>
+                    <Badge status={data.isConnected ? 'active' : 'en_panne'}>
+                      {data.isConnected ? 'Online' : 'Offline'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Last Sync</span>
+                    <span className="text-[10px] font-black text-slate-800">{data.lastUpdate}</span>
+                  </div>
+                  <button 
+                    onClick={() => handleRefresh()}
+                    className="w-full py-2 bg-slate-900 text-white text-[10px] font-black uppercase rounded-lg hover:bg-slate-800 transition-all"
+                  >
+                    Force Refresh
+                  </button>
+                </div>
+              </Card>
+            </div>
           </div>
 
           <Card title="File d'Attente (Active Queue)" icon={AlertTriangle}>
