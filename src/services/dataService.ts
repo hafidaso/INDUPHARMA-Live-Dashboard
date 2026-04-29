@@ -18,6 +18,10 @@ import {
   Severity,
   IncidentStatus
 } from '../types';
+import { supabase } from '../lib/supabaseClient';
+
+// Module-level cache: tracks previous machine statuses to detect state transitions
+const machineStatusCache = new Map<string, string>();
 
 const PRODUCTION_STATUS_URL =
   "https://fusion-ai-api.medifus.dev/webhooks/webhook-vug2y2v8zf6cu492khq7g3o0/api/production/status";
@@ -193,6 +197,84 @@ function resolveMeasureSummary(measures: ProductionMeasure[] | undefined) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Supabase: Detect state transitions and log incidents
+// ---------------------------------------------------------------------------
+async function syncIncidentsToSupabase(equipements: ProductionEquipement[]): Promise<void> {
+  for (const e of equipements) {
+    const currentStatus = e.statut;
+    const prevStatus = machineStatusCache.get(e.equipement_id);
+
+    // Machine JUST went down → INSERT new incident
+    if (currentStatus === 'en_panne' && prevStatus !== undefined && prevStatus !== 'en_panne') {
+      console.log(`Supabase: Logging downtime for ${e.nom}`);
+      await supabase.insert('machine_incidents_log', {
+        machine_id: e.equipement_id,
+        machine_name: e.nom,
+        status_changed_to: 'en_panne',
+        detected_at: new Date().toISOString(),
+        zone_production: e.zone_production,
+        criticite_gmp: e.criticite_gmp ?? 'unknown'
+      });
+    }
+
+    // Machine JUST recovered → UPDATE the open incident with resolved_at
+    if (currentStatus === 'active' && prevStatus === 'en_panne') {
+      console.log(`Supabase: Logging recovery for ${e.nom}`);
+      const openIncidents = await supabase.select('machine_incidents_log', {
+        machine_id: `eq.${e.equipement_id}`,
+        status_changed_to: 'eq.en_panne',
+        'resolved_at': 'is.null',
+        order: 'detected_at.desc',
+        limit: '1'
+      });
+      if (openIncidents.length > 0) {
+        await supabase.update(
+          'machine_incidents_log',
+          { resolved_at: new Date().toISOString() },
+          { id: openIncidents[0].id }
+        );
+      }
+    }
+
+    // Update cache for next cycle
+    machineStatusCache.set(e.equipement_id, currentStatus);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Supabase: Calculate real MTBF from historical incident logs
+// MTBF = average operating time BETWEEN consecutive failures (in hours)
+// ---------------------------------------------------------------------------
+async function getRealMtbfHours(machineId: string): Promise<number | null> {
+  try {
+    const incidents = await supabase.select<{ detected_at: string; resolved_at: string | null }>(
+      'machine_incidents_log',
+      {
+        machine_id: `eq.${machineId}`,
+        status_changed_to: 'eq.en_panne',
+        order: 'detected_at.asc'
+      }
+    );
+
+    // Need at least 2 resolved incidents to compute MTBF
+    const resolved = incidents.filter(i => i.resolved_at);
+    if (resolved.length < 2) return null;
+
+    let totalOperatingMs = 0;
+    for (let i = 1; i < resolved.length; i++) {
+      const prevResolved = new Date(resolved[i - 1].resolved_at!).getTime();
+      const nextDetected = new Date(resolved[i].detected_at).getTime();
+      totalOperatingMs += Math.max(0, nextDetected - prevResolved);
+    }
+
+    const mtbfHours = totalOperatingMs / 1000 / 3600 / (resolved.length - 1);
+    return Math.round(mtbfHours);
+  } catch {
+    return null;
+  }
+}
+
 async function fetchProductionStatus(): Promise<ProductionResponse> {
   const isLocalhost =
     typeof window !== 'undefined' &&
@@ -365,16 +447,24 @@ export async function fetchSheetData() {
       }
     });
 
-    const kpiLogs: KpiLog[] = payload.equipements.map((e) => {
-      // Deterministic hash based on machine ID so numbers don't flicker every 3 seconds
+    // Sync incident state transitions to Supabase (non-blocking)
+    syncIncidentsToSupabase(payload.equipements).catch(e =>
+      console.warn('Supabase sync skipped:', e)
+    );
+
+    // Build KPI logs with real MTBF from Supabase when available
+    const kpiLogs: KpiLog[] = await Promise.all(payload.equipements.map(async (e) => {
       const hash = Array.from(e.equipement_id).reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0);
       const absHash = Math.abs(hash);
-      
+
       const isDown = e.statut === 'en_panne' || e.statut === 'maintenance' || e.etat_global === 'alerte';
       const downtimeBase = isDown ? 30 + (absHash % 45) : (absHash % 15);
       const mttrBase = 12 + (absHash % 25);
-      const mtbfBase = 100 + (absHash % 300);
       const closureRate = 80 + (absHash % 20);
+
+      // Try real MTBF from Supabase, fallback to deterministic estimate
+      const realMtbf = await getRealMtbfHours(e.equipement_id);
+      const mtbfBase = realMtbf ?? (100 + (absHash % 300));
 
       return {
         id: `KPI-${e.equipement_id}`,
@@ -388,7 +478,7 @@ export async function fetchSheetData() {
         escalation_count: absHash % 2,
         closure_rate: closureRate,
       };
-    });
+    }));
 
     const machineView: DashboardMachineView[] = payload.equipements.map((e) => {
       const summary = resolveMeasureSummary(e.mesures_recentes);
