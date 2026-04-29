@@ -156,6 +156,46 @@ export default function App() {
     const saved = localStorage.getItem('indupharma_incident_detection_times');
     return saved ? JSON.parse(saved) : {};
   });
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const GEMINI_API_KEY = 'AIzaSyDVtERSk3sMfq0YGRmNiJffyXsp8idzMo0';
+
+  const analyzeDataWithGemini = async () => {
+    if (!data) return;
+    setIsAnalyzing(true);
+    try {
+      const prompt = `En tant qu'expert en maintenance industrielle pharmaceutique (normes GMP/FDA), analyse les données en temps réel de l'usine INDUPHARMA suivantes et fournis une analyse prédictive stratégique :
+
+Données Equipements : ${JSON.stringify(data.machines.map((m: any) => ({ nom: m.name, statut: m.status, zone: m.location })))}
+Incidents en cours : ${JSON.stringify(incidentsWithWorkflow.filter((i: any) => i.status !== 'closed').map((i: any) => ({ machine: i.machine_name, severite: i.severity, desc: i.description })))}
+KPI Usine : MTTR moyen = ${dashboardKpiSummary.find((k: any) => k.metric === 'MTTR moyen')?.value} min, Downtime total = ${dashboardKpiSummary.find((k: any) => k.metric === 'Downtime total')?.value} min.
+
+Formatte ta réponse en français avec :
+1. ANALYSE DES RISQUES (3 points clés)
+2. STRATÉGIE DE MAINTENANCE PRIORITAIRE
+3. RECOMMANDATION GMP GLOBALE
+
+Reste concis, technique et professionnel.`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
+
+      const result = await response.json();
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "L'analyse n'a pas pu être générée.";
+      setAiAnalysis(text);
+    } catch (error) {
+      console.error('Gemini AI Error:', error);
+      setAiAnalysis("⚠️ Erreur de connexion au moteur Gemini AI. Vérifiez votre clé API ou la connexion réseau.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('indupharma_incident_detection_times', JSON.stringify(incidentDetectionTimes));
@@ -2740,21 +2780,76 @@ export default function App() {
             </motion.div>
           )}
           {activeTab === 'Predictive' && (
-            <motion.div key="predictive" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              {/* Disclaimer Banner */}
-              <div className="flex items-center gap-3 px-5 py-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                <BrainCircuit className="w-6 h-6 text-indigo-600 shrink-0" />
-                <div>
-                  <p className="text-sm font-black text-indigo-900 uppercase tracking-widest">Rule-Based Predictive Alerts</p>
-                  <p className="text-xs text-indigo-600 mt-0.5">
-                    Ce module applique des règles industrielles GMP/USP prédéfinies sur les données capteurs en temps réel.
-                    <strong> Ce n'est pas un modèle ML/IA</strong> — les alertes sont générées par des seuils de référence industriels.
-                  </p>
-                </div>
-                <span className="ml-auto shrink-0 px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-full">
-                  Rule-Based Engine v1.0
-                </span>
+            <motion.div key="predictive" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                 <div className="space-y-1">
+                   <div className="flex items-center gap-2">
+                     <BrainCircuit className="w-6 h-6 text-purple-600" />
+                     <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Intelligence Prédictive Industrielle</h2>
+                   </div>
+                   <p className="text-xs text-slate-400 font-medium max-w-2xl leading-relaxed">
+                     Ce module hybride combine des <strong>Règles GMP déterministes</strong> (USP/ISO) avec une <strong>Analyse de Raisonnement IA (Gemini 1.5)</strong> pour anticiper les défaillances critiques et optimiser la conformité.
+                   </p>
+                 </div>
+                 <button 
+                   onClick={analyzeDataWithGemini}
+                   disabled={isAnalyzing}
+                   className={cn(
+                     "flex items-center gap-2 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed",
+                     isAnalyzing 
+                      ? "bg-slate-100 text-slate-400" 
+                      : "bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:shadow-purple-200 hover:scale-[1.02]"
+                   )}
+                 >
+                   {isAnalyzing ? (
+                     <>
+                       <RefreshCcw className="w-4 h-4 animate-spin" />
+                       Analyse en cours...
+                     </>
+                   ) : (
+                     <>
+                       <BrainCircuit className="w-4 h-4" />
+                       Demander Analyse IA Gemini
+                     </>
+                   )}
+                 </button>
               </div>
+
+              {/* AI Analysis Result */}
+              <AnimatePresence>
+                {aiAnalysis && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                  >
+                    <Card className="bg-slate-900 border-purple-500/30 overflow-hidden relative shadow-2xl">
+                      <div className="absolute top-0 right-0 p-4 opacity-20">
+                        <BrainCircuit className="w-32 h-32 text-purple-400" />
+                      </div>
+                      <div className="flex items-center justify-between mb-6 relative z-10">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+                            <Zap className="w-4 h-4 text-purple-400" />
+                          </div>
+                          <h3 className="text-sm font-black text-white uppercase tracking-widest">Rapport Stratégique IA Gemini</h3>
+                        </div>
+                        <button onClick={() => setAiAnalysis(null)} className="text-slate-500 hover:text-white transition-colors">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="prose prose-invert max-w-none relative z-10">
+                        <pre className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans whitespace-pre-wrap">
+                          {aiAnalysis}
+                        </pre>
+                      </div>
+                      <div className="mt-6 pt-4 border-t border-white/10 flex items-center gap-2 relative z-10">
+                         <span className="text-[10px] font-bold text-slate-500 uppercase">Modèle: Gemini 1.5 Flash • Analyse générée en temps réel</span>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Summary Counters */}
               <div className="grid grid-cols-3 gap-4">
@@ -2792,12 +2887,11 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Warning Cards */}
               {predictiveWarnings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-slate-100 border-dashed">
                   <ShieldCheck className="w-16 h-16 text-emerald-400 mb-4" />
-                  <p className="text-lg font-black text-slate-800">Aucune alerte prédictive détectée</p>
-                  <p className="text-sm text-slate-400 mt-1">Tous les capteurs sont dans les limites GMP définies. Système nominal.</p>
+                  <p className="text-lg font-black text-slate-800 uppercase">Aucune alerte prédictive détectée</p>
+                  <p className="text-xs text-slate-400 mt-1">Tous les capteurs sont dans les limites GMP définies. Système nominal.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
