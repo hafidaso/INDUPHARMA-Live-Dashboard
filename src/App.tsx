@@ -1865,12 +1865,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                             ? "border-emerald-100 opacity-100 scale-100" 
                             : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                         )}>
-                          <div className="absolute -top-3 left-8 bg-white px-3 text-emerald-600 text-[10px] font-black uppercase tracking-[0.3em] border border-emerald-50 rounded-full shadow-sm">Zone A — High-Care</div>
+                          <div className="absolute -top-3 left-8 bg-white px-3 text-emerald-700 text-[10px] font-black uppercase tracking-[0.3em] border border-emerald-100 rounded-full shadow-sm">Zone A — High-Care</div>
                           
                           <div className="grid grid-cols-2 gap-6 mt-4">
                             {/* Sub-Zone: Salle Propre */}
                             <div className="border border-dashed border-emerald-500/20 rounded-2xl p-4">
-                              <span className="text-[9px] text-emerald-500/60 font-black uppercase mb-3 block">Salle Propre</span>
+                               <span className="text-[9px] text-emerald-700 font-black uppercase mb-3 block">Salle Propre</span>
                               <div className="space-y-3">
                                 {filteredMachineView.filter(m => (zoneFilter === 'all' || zoneFilter === 'Zone A') && (m.location?.includes('Salle propre') || (m.location === 'Zone A' && m.type?.includes('HVAC')))).map(m => (
                                   <MachineBlock 
@@ -1884,7 +1884,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                             </div>
                             {/* Sub-Zone: Sterilisation */}
                             <div className="border border-dashed border-blue-500/20 rounded-2xl p-4 bg-blue-500/5">
-                              <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Stérilisation</span>
+                              <span className="text-[9px] text-blue-700 font-black uppercase mb-3 block">Stérilisation</span>
                               <div className="space-y-3">
                                 {filteredMachineView.filter(m => m.location?.includes('Stérilisation') || (m.location === 'Zone A' && m.type?.includes('Autoclave'))).map(m => (
                                   <MachineBlock key={m.machine_id} machine={m} variant="blue" onClick={() => setSelectedMachineId(m.machine_id)} />
@@ -1926,10 +1926,10 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                             ? "border-blue-100 opacity-100 scale-100" 
                             : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                         )}>
-                          <div className="absolute -top-3 left-8 bg-white px-3 text-blue-600 text-[10px] font-black uppercase tracking-[0.3em] border border-blue-50 rounded-full shadow-sm">Zone B — Primary</div>
+                          <div className="absolute -top-3 left-8 bg-white px-3 text-blue-700 text-[10px] font-black uppercase tracking-[0.3em] border border-blue-100 rounded-full shadow-sm">Zone B — Primary</div>
                           <div className="grid grid-cols-2 gap-6 mt-4">
                              <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
-                                <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Fabrication</span>
+                                <span className="text-[9px] text-blue-700 font-black uppercase mb-3 block">Fabrication</span>
                                 <div className="grid grid-cols-1 gap-3">
                                    {filteredMachineView.filter(m => m.location === 'Zone B' && (m.type?.includes('Fabrication') || m.machine_name.includes('Filtre') || m.machine_name.includes('Cuve'))).map(m => (
                                       <MachineBlock 
@@ -1942,7 +1942,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                                 </div>
                              </div>
                              <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
-                                <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Ligne 2</span>
+                                <span className="text-[9px] text-blue-700 font-black uppercase mb-3 block">Ligne 2</span>
                                 <div className="space-y-3">
                                    {filteredMachineView.filter(m => m.location === 'Zone B' && (m.location.includes('Ligne 2') || m.machine_name.includes('Pompe'))).map(m => (
                                       <MachineBlock 
@@ -1967,7 +1967,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                              ? "border-slate-200 opacity-100 scale-100" 
                              : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                          )}>
-                            <div className="absolute -top-3 left-8 bg-white px-3 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] border border-slate-100 rounded-full shadow-sm">Zone F — Utilities</div>
+                            <div className="absolute -top-3 left-8 bg-white px-3 text-slate-700 text-[10px] font-black uppercase tracking-[0.3em] border border-slate-200 rounded-full shadow-sm">Zone F — Utilities</div>
                             
                             <div className="mt-4 space-y-6">
                                {filteredMachineView.filter(m => m.location === 'Zone F').map(m => (
@@ -2076,20 +2076,20 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                           </div>
                        </div>
 
-                       {/* Logical Dynamic Stats */}
+                       {/* Logical Dynamic Stats - NOW SYNCED */}
                        <div className="flex gap-6 border-l border-slate-100 pl-8">
                           <div className="text-center">
-                             <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Actives</p>
+                             <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Actives</p>
                              <div className="flex items-center gap-2 justify-center">
                                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
                                 <span className="text-2xl font-black text-slate-900">{filteredMachineView.filter(m => m.machine_status === 'active').length}</span>
                              </div>
                           </div>
                           <div className="text-center">
-                             <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Incidents</p>
+                             <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Incidents</p>
                              <div className="flex items-center gap-2 justify-center">
                                 <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                <span className="text-2xl font-black text-red-600">{filteredMachineView.filter(m => m.machine_status === 'en_panne' || m.latest_severity === 'critical').length}</span>
+                                <span className="text-2xl font-black text-red-600">{openAlertCount}</span>
                              </div>
                           </div>
                        </div>
