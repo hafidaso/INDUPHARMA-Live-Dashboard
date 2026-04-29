@@ -41,7 +41,9 @@ import {
   ClipboardList,
   BrainCircuit,
   TrendingDown,
-  ShieldOff
+  ShieldOff,
+  Map,
+  Compass
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -117,6 +119,82 @@ const ACTION_STATUS_LABEL: Record<ActionProgressStatus, string> = {
 const ACTION_TO_INCIDENT: Partial<Record<ActionProgressStatus, IncidentStatus>> = {
   done: 'closed',
   in_progress: 'in_progress',
+};
+
+/**
+ * MachineBlock Component
+ * Represents a single machine unit on the Factory Floor Map
+ * Fully data-driven based on current machine state
+ */
+const MachineBlock = ({ machine, variant = 'default', onClick }: { machine: DashboardMachineView, variant?: 'default' | 'blue' | 'red', onClick: () => void }) => {
+  const isWarning = machine.latest_severity === 'warning' || machine.latest_severity === 'critical';
+  const isFault = machine.machine_status === 'en_panne';
+  const isMaintenance = machine.machine_status === 'maintenance';
+
+  let bgColor = 'bg-slate-800/40';
+  let borderColor = 'border-slate-700';
+  let dotColor = 'bg-emerald-500';
+
+  if (variant === 'blue') {
+    bgColor = 'bg-blue-500/10';
+    borderColor = 'border-blue-500/30';
+    dotColor = 'bg-blue-400';
+  }
+
+  if (isWarning) {
+    bgColor = 'bg-amber-500/10';
+    borderColor = 'border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.1)]';
+    dotColor = 'bg-amber-500';
+  }
+
+  if (isFault) {
+    bgColor = 'bg-red-500/20';
+    borderColor = 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]';
+    dotColor = 'bg-red-500';
+  }
+
+  if (isMaintenance) {
+    bgColor = 'bg-slate-700/60';
+    borderColor = 'border-slate-500';
+    dotColor = 'bg-slate-400';
+  }
+
+  return (
+    <motion.div 
+      whileHover={{ scale: 1.02, y: -2 }}
+      onClick={onClick}
+      className={cn(
+        "relative p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 group overflow-hidden h-full min-h-[80px]",
+        bgColor, borderColor
+      )}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <div className={cn(
+          "w-2 h-2 rounded-full",
+          dotColor,
+          (isFault || isWarning) ? "animate-ping" : (machine.machine_status === 'active' ? "animate-pulse" : "")
+        )} />
+        <h4 className="text-[10px] font-black text-white uppercase tracking-tight truncate">
+          {machine.machine_name}
+        </h4>
+      </div>
+      <div className="space-y-1">
+        <p className="text-[8px] font-bold text-slate-400 uppercase leading-none">
+          {machine.machine_status}
+        </p>
+        <p className={cn(
+          "text-[9px] font-black truncate",
+          isFault ? "text-red-400" : (isWarning ? "text-amber-400" : "text-slate-300")
+        )}>
+          {machine.latest_value_summary || 'No data'}
+        </p>
+      </div>
+      {/* Decorative scan line for active machines */}
+      {machine.machine_status === 'active' && (
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent h-1/2 w-full -translate-y-full group-hover:animate-[scan_2s_linear_infinite]" />
+      )}
+    </motion.div>
+  );
 };
 
 // --- Main App ---
@@ -1738,188 +1816,243 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                 </div>
               </button>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Machine Status Grid */}
-                <div className="lg:col-span-2 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                       <Box className="w-5 h-5 text-blue-600" />
-                       Machine Status Map
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-2">
-                       <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 shadow-sm">
-                          <Search className="w-4 h-4 text-slate-400" />
-                          <input 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="text-xs outline-none w-28 md:w-40 bg-transparent" 
-                            placeholder="Rechercher..." 
-                          />
-                       </div>
-                       <select 
-                         value={zoneFilter}
-                         onChange={(e) => setZoneFilter(e.target.value)}
-                         className="bg-white border border-slate-200 rounded-lg text-[10px] font-black uppercase px-2 py-1.5 outline-none shadow-sm cursor-pointer"
-                       >
-                          <option value="all">Toutes Zones</option>
-                          {allZones.map(z => <option key={z} value={z}>{z}</option>)}
-                       </select>
-                       <select 
-                         value={statusFilter}
-                         onChange={(e) => setStatusFilter(e.target.value as any)}
-                         className="bg-white border border-slate-200 rounded-lg text-[10px] font-black uppercase px-2 py-1.5 outline-none shadow-sm cursor-pointer"
-                       >
-                          <option value="all">Tous Status</option>
-                          <option value="active">Actifs</option>
-                          <option value="en_panne">🚨 En Panne</option>
-                          <option value="maintenance">🔧 Maintenance</option>
-                       </select>
+              <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                {/* Factory Floor Map - The Bird's Eye View */}
+                <div className="xl:col-span-3 space-y-4">
+                  <div className="flex items-center justify-between bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-600 rounded-lg">
+                        <Map className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Factory Floor Live Map</h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">InduPharma Site • Real-time Topology</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {['Toutes zones', 'Zone A', 'Zone B', 'Zone F'].map(z => (
+                        <button 
+                          key={z} 
+                          onClick={() => setZoneFilter(z === 'Toutes zones' ? 'all' : z)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                            (zoneFilter === 'all' && z === 'Toutes zones') || zoneFilter === z 
+                              ? "bg-slate-900 text-white shadow-lg shadow-slate-200 scale-105" 
+                              : "bg-white text-slate-400 border border-slate-200 hover:border-slate-400"
+                          )}
+                        >
+                          {z}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredMachineView.map((mv: DashboardMachineView) => (
-                      <Card 
-                        key={mv.machine_id} 
-                        className="cursor-pointer hover:border-blue-300 group"
-                        onClick={() => setSelectedMachineId(mv.machine_id)}
-                      >
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-slate-900 font-black text-sm uppercase tracking-tight group-hover:text-blue-600 transition-colors">
-                                {mv.machine_name}
-                              </h3>
-                              {mv.code_machine && (
-                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200 uppercase">
-                                  {mv.code_machine}
-                                </span>
-                              )}
+
+                  {/* The Map Canvas */}
+                  <div className="relative bg-[#0f172a] rounded-[2.5rem] p-8 min-h-[700px] border-[12px] border-[#1e293b] shadow-2xl overflow-hidden">
+                    {/* Grid Overlay */}
+                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', size: '24px 24px' }} />
+                    
+                    <div className="relative z-10 grid grid-cols-2 gap-8 h-full">
+                      {/* Left Side: Zone A & B */}
+                      <div className="space-y-8">
+                        {/* ZONE A Container */}
+                        <div className="border-2 border-emerald-500/30 rounded-3xl p-6 relative bg-emerald-500/5">
+                          <div className="absolute -top-3 left-6 bg-[#0f172a] px-3 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone A — Production High-Care</div>
+                          
+                          <div className="grid grid-cols-2 gap-6 mt-4">
+                            {/* Sub-Zone: Salle Propre */}
+                            <div className="border border-dashed border-emerald-500/20 rounded-2xl p-4">
+                              <span className="text-[9px] text-emerald-500/60 font-black uppercase mb-3 block">Salle Propre</span>
+                              <div className="space-y-3">
+                                {filteredMachineView.filter(m => m.location?.includes('Salle propre') || (m.location === 'Zone A' && m.type?.includes('HVAC'))).map(m => (
+                                  <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                ))}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase">{mv.type}</span>
-                              <span className="text-slate-300 text-[10px]">•</span>
-                              <span className="text-[10px] text-slate-500 font-bold uppercase">{mv.location}</span>
+                            {/* Sub-Zone: Sterilisation */}
+                            <div className="border border-dashed border-blue-500/20 rounded-2xl p-4 bg-blue-500/5">
+                              <span className="text-[9px] text-blue-400/60 font-black uppercase mb-3 block">Stérilisation</span>
+                              <div className="space-y-3">
+                                {filteredMachineView.filter(m => m.location?.includes('Stérilisation') || (m.location === 'Zone A' && m.type?.includes('Autoclave'))).map(m => (
+                                  <MachineBlock key={m.machine_id} machine={m} variant="blue" onClick={() => setSelectedMachineId(m.machine_id)} />
+                                ))}
+                              </div>
                             </div>
                           </div>
-                          <Badge status={mv.machine_status}>{mv.machine_status}</Badge>
+
+                          {/* Ligne 1 Section */}
+                          <div className="mt-6 border border-dashed border-slate-700 rounded-2xl p-6 bg-slate-800/20">
+                             <div className="flex items-center justify-between mb-4">
+                               <span className="text-[9px] text-slate-500 font-black uppercase">Ligne 1 — Packaging</span>
+                               <div className="flex gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                               </div>
+                             </div>
+                             <div className="flex gap-4 overflow-x-auto pb-2">
+                                {filteredMachineView.filter(m => m.location?.includes('Ligne 1') || (m.location === 'Zone A' && !m.type?.includes('HVAC') && !m.type?.includes('Autoclave'))).map(m => (
+                                  <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                ))}
+                                <div className="min-w-[120px] flex items-center justify-center border border-dashed border-slate-700 rounded-xl opacity-20">
+                                   <ArrowRight className="w-6 h-6 text-slate-500" />
+                                   <span className="text-[8px] font-black uppercase ml-2 italic text-center">Flux Production</span>
+                                </div>
+                             </div>
+                          </div>
                         </div>
 
-                        {mv.techniciens_active && mv.techniciens_active > 0 ? (
-                           <div className="mb-4 flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg">
-                              <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
-                              <span className="text-[10px] font-black text-indigo-700 uppercase">
-                                {mv.techniciens_active} Technicien(s) Actif(s)
-                              </span>
-                           </div>
-                        ) : null}
-
-                        <div className="p-3 bg-slate-50 rounded-lg space-y-3 border border-slate-100">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Smartphone className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="text-[10px] font-black text-slate-500 uppercase">{mv.latest_device}</span>
-                            </div>
-                            <Badge status={mv.latest_status}>{mv.latest_status}</Badge>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700">{mv.latest_value_summary}</span>
-                            <Badge status={mv.latest_severity}>{mv.latest_severity}</Badge>
+                        {/* ZONE B Container */}
+                        <div className="border-2 border-blue-500/30 rounded-3xl p-6 relative bg-blue-500/5">
+                          <div className="absolute -top-3 left-6 bg-[#0f172a] px-3 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone B — Manufacturing & Primary</div>
+                          <div className="grid grid-cols-2 gap-6 mt-4">
+                             <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
+                                <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Fabrication</span>
+                                <div className="grid grid-cols-1 gap-3">
+                                   {filteredMachineView.filter(m => m.location === 'Zone B' && (m.type?.includes('Fabrication') || m.machine_name.includes('Filtre') || m.machine_name.includes('Cuve'))).map(m => (
+                                      <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                   ))}
+                                </div>
+                             </div>
+                             <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
+                                <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Ligne 2</span>
+                                <div className="space-y-3">
+                                   {filteredMachineView.filter(m => m.location === 'Zone B' && (m.location.includes('Ligne 2') || m.machine_name.includes('Pompe'))).map(m => (
+                                      <MachineBlock key={m.machine_id} machine={m} onClick={() => setSelectedMachineId(m.machine_id)} />
+                                   ))}
+                                </div>
+                             </div>
                           </div>
                         </div>
+                      </div>
 
-                        {mv.active_incident && (
-                          <div className="mt-3 flex items-center justify-between px-3 py-2 bg-red-50 border border-red-100 rounded-lg animate-pulse">
-                            <div className="flex items-center gap-2">
-                              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                              <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">Incident: {mv.active_incident}</span>
+                      {/* Right Side: Zone F & Legend */}
+                      <div className="flex flex-col gap-8">
+                         {/* ZONE F Container */}
+                         <div className="border-2 border-slate-600/30 rounded-3xl p-6 relative bg-slate-800/10 flex-1">
+                            <div className="absolute -top-3 left-6 bg-[#0f172a] px-3 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone F — Utilities</div>
+                            
+                            <div className="mt-4 space-y-6">
+                               {filteredMachineView.filter(m => m.location === 'Zone F').map(m => (
+                                  <div key={m.machine_id} className="p-6 rounded-2xl border-2 border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-all cursor-pointer group" onClick={() => setSelectedMachineId(m.machine_id)}>
+                                     <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+                                        <h3 className="text-lg font-black text-white uppercase">{m.machine_name}</h3>
+                                     </div>
+                                     <div className="space-y-2 opacity-60">
+                                        <div className="flex justify-between text-[10px] font-bold text-red-200">
+                                           <span>STATUS:</span>
+                                           <span className="uppercase">{m.machine_status}</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px] font-bold text-red-200">
+                                           <span>MESURE LIVE:</span>
+                                           <span>{m.latest_value_summary}</span>
+                                        </div>
+                                     </div>
+                                     <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+                                        <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Arrêt Planifié</span>
+                                        <Activity className="w-4 h-4 text-red-500 opacity-20" />
+                                     </div>
+                                  </div>
+                               ))}
+
+                               {/* Infrastructure status list */}
+                               <div className="bg-white/5 rounded-2xl p-5 border border-white/5 space-y-4">
+                                  <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Statut services généraux</h4>
+                                  {[
+                                    { label: 'Eau purifiée', status: 'OK', color: 'bg-emerald-500' },
+                                    { label: 'Alimentation électrique', status: 'OK', color: 'bg-emerald-500' },
+                                    { label: 'R15 Réacteur', status: 'Maintenance', color: 'bg-amber-500' }
+                                  ].map((infra, i) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className={`w-2 h-2 rounded-full ${infra.color}`} />
+                                        <span className="text-xs font-bold text-slate-300">{infra.label}</span>
+                                      </div>
+                                      <span className="text-[10px] font-black text-slate-500 uppercase">— {infra.status}</span>
+                                    </div>
+                                  ))}
+                               </div>
                             </div>
-                            <Badge status={mv.incident_status}>{mv.incident_status}</Badge>
-                          </div>
-                        )}
-                      </Card>
-                    ))}
+                         </div>
+
+                         {/* Legend Section */}
+                         <div className="bg-white/5 rounded-3xl p-6 border border-white/5 backdrop-blur-md">
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Légende</h4>
+                            <div className="grid grid-cols-1 gap-3">
+                               {[
+                                 { label: 'Active — normal', color: 'bg-emerald-500' },
+                                 { label: 'Active — warning (seuil dépassé)', color: 'bg-amber-500' },
+                                 { label: 'Maintenance en cours', color: 'bg-red-500' },
+                                 { label: 'Inactive / Hors service', color: 'bg-slate-500' },
+                                 { label: 'Stérilisation / process spécial', color: 'bg-blue-400' }
+                               ].map((leg, i) => (
+                                 <div key={i} className="flex items-center gap-3">
+                                    <div className={`w-3 h-3 rounded-full ${leg.color} shadow-lg shadow-${leg.color.split('-')[1]}-500/20`} />
+                                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-tight">{leg.label}</span>
+                                 </div>
+                               ))}
+                            </div>
+                            <div className="mt-8 flex justify-end">
+                               <div className="flex flex-col items-center opacity-20">
+                                  <Compass className="w-8 h-8 text-white mb-1" />
+                                  <span className="text-[8px] font-black text-white">N</span>
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Sidebar Cards */}
+                {/* Right Sidebar: Quick Stats & Filters */}
                 <div className="space-y-6">
-                  {/* AI Recommendations */}
-                  <Card title="Maintenance Assistant IA" icon={Cpu} className="border-blue-200">
+                  <Card title="Quick Filters" icon={Search}>
                     <div className="space-y-4">
-                      {siteRecommendations.map((rec: any, idx: number) => (
-                        <div key={idx} className="p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-blue-700 uppercase">{rec.machine}</span>
-                            <Badge status={rec.severity}>{rec.severity}</Badge>
-                          </div>
-                          <p className="text-xs text-blue-900 font-medium leading-relaxed italic">
-                            "{rec.recommendation}"
-                          </p>
-                          <div className="flex items-center gap-2 pt-1 border-t border-blue-100">
-                            <UserCheck className="w-3 h-3 text-blue-400" />
-                            <span className="text-[10px] font-black text-blue-500 uppercase">Recommended: {rec.owner}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {siteRecommendations.length === 0 && (
-                        <div className="text-center py-6 text-slate-400">
-                          <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                          <p className="text-xs font-bold uppercase tracking-widest">Aucun risque critique détecté</p>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-
-                  {/* Technician Status */}
-                  <Card title="Techniciens de Garde" icon={UserCheck}>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-[10px] font-black text-emerald-600 uppercase mb-2">Actifs maintenant</p>
-                        <div className="space-y-2">
-                          {technicianGroups.activeNow.map((tech: Technician) => (
-                            <div key={`active-${tech.id}`} className="p-3 border border-emerald-100 rounded-xl bg-emerald-50/50">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h4 className="text-xs font-black text-slate-800">{tech.name}</h4>
-                                  <p className="text-[10px] text-slate-500 font-bold uppercase">{tech.role}</p>
-                                </div>
-                                <Badge status="in_progress">{tech.work_status ?? 'in_progress'}</Badge>
-                              </div>
-                              <p className="text-[10px] text-slate-600 mt-1">
-                                {tech.current_machine ? `Machine: ${tech.current_machine}` : 'Machine: N/A'}
-                              </p>
-                            </div>
-                          ))}
-                          {technicianGroups.activeNow.length === 0 && (
-                            <p className="text-[11px] text-slate-400 italic">Aucun technicien actif maintenant.</p>
-                          )}
-                        </div>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Chercher une machine..."
+                          className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        />
                       </div>
-
-                      <div>
-                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Non actifs / terminés</p>
-                        <div className="space-y-2">
-                          {[...technicianGroups.notWorking, ...technicianGroups.done].map((tech: Technician) => (
-                            <div key={`idle-${tech.id}`} className="flex items-center justify-between p-3 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
-                                  <User className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <h4 className="text-xs font-black text-slate-800">{tech.name}</h4>
-                                  <p className="text-[10px] text-slate-500 font-bold uppercase">{tech.role}</p>
-                                </div>
-                              </div>
-                              <Badge status={tech.work_status === 'done' ? 'closed' : 'inactive'}>
-                                {tech.work_status === 'done' ? 'done' : 'not_yet'}
-                              </Badge>
-                            </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Filtrer par Status</p>
+                        <div className="flex flex-wrap gap-2">
+                          {['all', 'active', 'en_panne', 'maintenance'].map(s => (
+                            <button 
+                              key={s}
+                              onClick={() => setStatusFilter(s as any)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
+                                statusFilter === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                              )}
+                            >
+                              {s === 'all' ? 'Tous' : s}
+                            </button>
                           ))}
                         </div>
                       </div>
                     </div>
                   </Card>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-full -mr-12 -mt-12 opacity-50" />
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Actives</p>
+                       <p className="text-4xl font-black text-slate-900">
+                          {data?.kpiSummary?.find(k => k.metric === 'Alertes Actives')?.value || 0}
+                       </p>
+                    </div>
+                    <div className="bg-slate-900 p-6 rounded-[2rem] border border-slate-800 shadow-xl relative overflow-hidden">
+                       <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-12 -mt-12 opacity-10" />
+                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Incidents ouverts</p>
+                       <p className="text-4xl font-black text-red-500">
+                          {data?.kpiSummary?.find(k => k.metric === 'Alertes Critiques')?.value || 0}
+                       </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
