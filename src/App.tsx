@@ -293,7 +293,8 @@ export default function App() {
     return data.machines.find((m: any) => m.id === selectedMachineId);
   }, [data, selectedMachineId]);
 
-  const updateIncidentProgress = (incidentId: string, status: ActionProgressStatus, technician: string) => {
+  const updateIncidentProgress = async (incidentId: string, status: ActionProgressStatus, technician: string) => {
+    // 1. Update UI state locally for instant feedback
     setIncidentProgress((prev) => ({
       ...prev,
       [incidentId]: {
@@ -302,6 +303,24 @@ export default function App() {
         updated_at: new Date().toLocaleString('fr-FR'),
       },
     }));
+
+    // 2. Send the update to the external backend via webhook (Closed-Loop Sync)
+    try {
+      await fetch('https://fusion-ai-api.medifus.dev/webhooks/webhook-rxho8iyi2613mbn6fwi5drzj/technicien', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incident_id: incidentId,
+          status,
+          technician,
+          updated_at: new Date().toISOString(),
+          action: 'technician_update'
+        })
+      });
+      console.log(`[Webhook] Sent update for ${incidentId}: ${status}`);
+    } catch (e) {
+      console.error('[Webhook Error] Failed to send update:', e);
+    }
   };
 
   const incidentsWithWorkflow: Incident[] = useMemo(() => {
