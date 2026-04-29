@@ -134,42 +134,41 @@ const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick 
   let bgColor = 'bg-white';
   let borderColor = 'border-slate-200';
   let dotColor = 'bg-emerald-500';
-  let textColor = 'text-slate-900';
+  let titleColor = 'text-slate-900';
 
   if (variant === 'blue') {
-    bgColor = 'bg-blue-50';
     borderColor = 'border-blue-200';
     dotColor = 'bg-blue-500';
   }
 
   if (isWarning) {
-    bgColor = 'bg-amber-50';
-    borderColor = 'border-amber-400 shadow-sm';
+    bgColor = 'bg-amber-50/30';
+    borderColor = 'border-amber-300';
     dotColor = 'bg-amber-500';
   }
 
   if (isFault) {
-    bgColor = 'bg-red-50';
-    borderColor = 'border-red-400 shadow-md';
+    bgColor = 'bg-red-50/50';
+    borderColor = 'border-red-300';
     dotColor = 'bg-red-500';
-    textColor = 'text-red-700';
+    titleColor = 'text-red-700';
   }
 
   if (isMaintenance) {
-    bgColor = 'bg-slate-100';
-    borderColor = 'border-slate-300';
-    dotColor = 'bg-slate-400';
-    textColor = 'text-slate-500';
+    bgColor = 'bg-slate-50';
+    borderColor = 'border-slate-200';
+    dotColor = 'bg-slate-300';
+    titleColor = 'text-slate-500';
   }
 
   return (
     <motion.div 
       animate={{ opacity: isDimmed ? 0.2 : 1, scale: isDimmed ? 0.98 : 1 }}
-      whileHover={!isDimmed ? { scale: 1.02, y: -2, boxShadow: '0 10px 20px -10px rgba(0,0,0,0.1)' } : {}}
+      whileHover={!isDimmed ? { y: -2, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' } : {}}
       onClick={!isDimmed ? onClick : undefined}
       className={cn(
-        "relative p-3 rounded-xl border-2 transition-all duration-500 group overflow-hidden h-full min-h-[80px] shadow-sm",
-        isDimmed ? "cursor-default grayscale" : "cursor-pointer",
+        "relative p-3 rounded-xl border transition-all duration-500 group overflow-hidden h-full min-h-[80px]",
+        isDimmed ? "cursor-default grayscale opacity-20" : "cursor-pointer bg-white shadow-sm",
         bgColor, borderColor
       )}
     >
@@ -179,7 +178,7 @@ const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick 
           dotColor,
           (isFault || isWarning) ? "animate-ping" : (machine.machine_status === 'active' ? "animate-pulse" : "")
         )} />
-        <h4 className={cn("text-[10px] font-black uppercase tracking-tight truncate", textColor)}>
+        <h4 className={cn("text-[10px] font-black uppercase tracking-tight truncate", titleColor)}>
           {machine.machine_name}
         </h4>
       </div>
@@ -187,16 +186,10 @@ const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick 
         <p className="text-[8px] font-bold text-slate-400 uppercase leading-none">
           {machine.machine_status}
         </p>
-        <p className={cn(
-          "text-[9px] font-black truncate",
-          isFault ? "text-red-600" : (isWarning ? "text-amber-600" : "text-slate-600")
-        )}>
-          {machine.latest_value_summary || 'No data'}
+        <p className="text-[10px] font-black truncate text-slate-600">
+          {machine.latest_value_summary || '---'}
         </p>
       </div>
-      {!isDimmed && machine.machine_status === 'active' && (
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent h-1/2 w-full -translate-y-full group-hover:animate-[scan_2s_linear_infinite]" />
-      )}
     </motion.div>
   );
 };
@@ -1783,35 +1776,35 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                 ))}
               </div>
 
-              {/* KPI Quick-Access Card → links to KPIs tab */}
+              {/* KPI Quick-Access Card → CLEAN WHITE THEME */}
               <button onClick={() => setActiveTab('KPIs')} className="w-full text-left group">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-2xl p-6 border border-blue-400 hover:from-blue-700 hover:to-blue-600 transition-all duration-300 shadow-lg shadow-blue-100">
+                <div className="bg-white rounded-3xl p-6 border border-slate-200 hover:border-blue-300 transition-all duration-300 shadow-sm">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white/20 rounded-lg">
-                        <BarChart3 className="w-5 h-5 text-white" />
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <BarChart3 className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Performance KPIs — Vue Rapide</h3>
-                        <p className="text-[10px] text-blue-100 font-medium">Données live • Cliquez pour l’analyse complète</p>
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Performance KPIs — Live</h3>
+                        <p className="text-[10px] text-slate-400 font-medium tracking-tight">Analyse de production en temps réel</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-white uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-                      <span>Voir tout</span>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+                      <span>Accéder au Rapport</span>
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                      { label: 'MTTR Moyen', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mttr_minutes, 0)) / ((data?.kpiLogs ?? []).length || 1))} min`, icon: Clock, color: 'text-white' },
-                      { label: 'Downtime Total', value: `${(data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0)} min`, icon: TrendingDown, color: 'text-white' },
-                      { label: 'MTBF Moyen', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mtbf_hours, 0)) / ((data?.kpiLogs ?? []).length || 1))} h`, icon: TrendingUp, color: 'text-white' },
-                      { label: 'Closure Rate', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.closure_rate, 0)) / ((data?.kpiLogs ?? []).length || 1))}%`, icon: CheckCircle2, color: 'text-white' }
+                      { label: 'MTTR Moyen', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mttr_minutes, 0)) / ((data?.kpiLogs ?? []).length || 1))} min`, icon: Clock, color: 'text-amber-600' },
+                      { label: 'Downtime Total', value: `${(data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.downtime_minutes, 0)} min`, icon: TrendingDown, color: 'text-red-600' },
+                      { label: 'MTBF Moyen', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.mtbf_hours, 0)) / ((data?.kpiLogs ?? []).length || 1))} h`, icon: TrendingUp, color: 'text-emerald-600' },
+                      { label: 'Closure Rate', value: `${Math.round(((data?.kpiLogs ?? []).reduce((a: number, b: KpiLog) => a + b.closure_rate, 0)) / ((data?.kpiLogs ?? []).length || 1))}%`, icon: CheckCircle2, color: 'text-blue-600' }
                     ].map((kpi, i) => (
-                      <div key={i} className="bg-white/10 rounded-xl p-4 border border-white/20">
+                      <div key={i} className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 hover:bg-white hover:shadow-md transition-all">
                         <div className="flex items-center gap-2 mb-2">
                           <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
-                          <span className="text-[9px] font-black text-blue-50 uppercase tracking-widest">{kpi.label}</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{kpi.label}</span>
                         </div>
                         <p className={`text-xl font-black ${kpi.color}`}>{kpi.value}</p>
                       </div>
@@ -1851,22 +1844,22 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                     </div>
                   </div>
 
-                  {/* The Map Canvas */}
-                  <div className="relative bg-[#0f172a] rounded-[2.5rem] p-8 min-h-[700px] border-[12px] border-[#1e293b] shadow-2xl overflow-hidden">
-                    {/* Grid Overlay */}
-                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', size: '24px 24px' }} />
+                  {/* The Map Canvas - PHARMA LIGHT THEME */}
+                  <div className="relative bg-white rounded-[3rem] p-10 min-h-[750px] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
+                    {/* Very subtle noise/grid */}
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
                     
                     <div className="relative z-10 grid grid-cols-2 gap-8 h-full">
                       {/* Left Side: Zone A & B */}
                       <div className="space-y-8">
                         {/* ZONE A Container */}
                         <div className={cn(
-                          "border-2 rounded-3xl p-6 relative transition-all duration-700",
+                          "border rounded-[2rem] p-6 relative transition-all duration-700 bg-white shadow-sm",
                           (zoneFilter === 'all' || zoneFilter === 'Zone A') 
-                            ? "border-emerald-500/20 bg-emerald-500/5 opacity-100 scale-100" 
-                            : "border-slate-200 bg-slate-50 opacity-20 scale-[0.98] grayscale pointer-events-none"
+                            ? "border-emerald-100 opacity-100 scale-100" 
+                            : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                         )}>
-                          <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em]">Zone A — Production High-Care</div>
+                          <div className="absolute -top-3 left-8 bg-white px-3 text-emerald-600 text-[10px] font-black uppercase tracking-[0.3em] border border-emerald-50 rounded-full shadow-sm">Zone A — High-Care</div>
                           
                           <div className="grid grid-cols-2 gap-6 mt-4">
                             {/* Sub-Zone: Salle Propre */}
@@ -1922,12 +1915,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
 
                         {/* ZONE B Container */}
                         <div className={cn(
-                          "border-2 rounded-3xl p-6 relative transition-all duration-700",
+                          "border rounded-[2rem] p-6 relative transition-all duration-700 bg-white shadow-sm",
                           (zoneFilter === 'all' || zoneFilter === 'Zone B') 
-                            ? "border-blue-500/10 bg-blue-500/5 opacity-100 scale-100" 
-                            : "border-slate-200 bg-slate-50 opacity-20 scale-[0.98] grayscale pointer-events-none"
+                            ? "border-blue-100 opacity-100 scale-100" 
+                            : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                         )}>
-                          <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">Zone B — Manufacturing & Primary</div>
+                          <div className="absolute -top-3 left-8 bg-white px-3 text-blue-600 text-[10px] font-black uppercase tracking-[0.3em] border border-blue-50 rounded-full shadow-sm">Zone B — Primary</div>
                           <div className="grid grid-cols-2 gap-6 mt-4">
                              <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
                                 <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Fabrication</span>
@@ -1963,12 +1956,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                       <div className="flex flex-col gap-8">
                          {/* ZONE F Container */}
                          <div className={cn(
-                           "border-2 rounded-3xl p-6 relative transition-all duration-700 flex-1 shadow-inner",
+                           "border rounded-[2rem] p-6 relative transition-all duration-700 flex-1 bg-white shadow-sm",
                            (zoneFilter === 'all' || zoneFilter === 'Zone F') 
-                             ? "border-slate-200 bg-white opacity-100 scale-100" 
-                             : "border-slate-100 bg-slate-50 opacity-20 scale-[0.98] grayscale pointer-events-none"
+                             ? "border-slate-200 opacity-100 scale-100" 
+                             : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                          )}>
-                            <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone F — Utilities</div>
+                            <div className="absolute -top-3 left-8 bg-white px-3 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] border border-slate-100 rounded-full shadow-sm">Zone F — Utilities</div>
                             
                             <div className="mt-4 space-y-6">
                                {filteredMachineView.filter(m => m.location === 'Zone F').map(m => (
