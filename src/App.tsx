@@ -131,41 +131,44 @@ const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick 
   const isFault = machine.machine_status === 'en_panne';
   const isMaintenance = machine.machine_status === 'maintenance';
 
-  let bgColor = 'bg-slate-800/40';
-  let borderColor = 'border-slate-700';
+  let bgColor = 'bg-white';
+  let borderColor = 'border-slate-200';
   let dotColor = 'bg-emerald-500';
+  let textColor = 'text-slate-900';
 
   if (variant === 'blue') {
-    bgColor = 'bg-blue-500/10';
-    borderColor = 'border-blue-500/30';
-    dotColor = 'bg-blue-400';
+    bgColor = 'bg-blue-50';
+    borderColor = 'border-blue-200';
+    dotColor = 'bg-blue-500';
   }
 
   if (isWarning) {
-    bgColor = 'bg-amber-500/10';
-    borderColor = 'border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.1)]';
+    bgColor = 'bg-amber-50';
+    borderColor = 'border-amber-400 shadow-sm';
     dotColor = 'bg-amber-500';
   }
 
   if (isFault) {
-    bgColor = 'bg-red-500/20';
-    borderColor = 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]';
+    bgColor = 'bg-red-50';
+    borderColor = 'border-red-400 shadow-md';
     dotColor = 'bg-red-500';
+    textColor = 'text-red-700';
   }
 
   if (isMaintenance) {
-    bgColor = 'bg-slate-700/60';
-    borderColor = 'border-slate-500';
+    bgColor = 'bg-slate-100';
+    borderColor = 'border-slate-300';
     dotColor = 'bg-slate-400';
+    textColor = 'text-slate-500';
   }
 
   return (
     <motion.div 
-      animate={{ opacity: isDimmed ? 0.15 : 1, scale: isDimmed ? 0.98 : 1 }}
-      whileHover={!isDimmed ? { scale: 1.02, y: -2 } : {}}
+      animate={{ opacity: isDimmed ? 0.2 : 1, scale: isDimmed ? 0.98 : 1 }}
+      whileHover={!isDimmed ? { scale: 1.02, y: -2, boxShadow: '0 10px 20px -10px rgba(0,0,0,0.1)' } : {}}
       onClick={!isDimmed ? onClick : undefined}
       className={cn(
-        "relative p-3 rounded-xl border-2 transition-all duration-500 group overflow-hidden h-full min-h-[80px]",
+        "relative p-3 rounded-xl border-2 transition-all duration-500 group overflow-hidden h-full min-h-[80px] shadow-sm",
         isDimmed ? "cursor-default grayscale" : "cursor-pointer",
         bgColor, borderColor
       )}
@@ -176,7 +179,7 @@ const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick 
           dotColor,
           (isFault || isWarning) ? "animate-ping" : (machine.machine_status === 'active' ? "animate-pulse" : "")
         )} />
-        <h4 className="text-[10px] font-black text-white uppercase tracking-tight truncate">
+        <h4 className={cn("text-[10px] font-black uppercase tracking-tight truncate", textColor)}>
           {machine.machine_name}
         </h4>
       </div>
@@ -186,13 +189,13 @@ const MachineBlock = ({ machine, variant = 'default', isDimmed = false, onClick 
         </p>
         <p className={cn(
           "text-[9px] font-black truncate",
-          isFault ? "text-red-400" : (isWarning ? "text-amber-400" : "text-slate-300")
+          isFault ? "text-red-600" : (isWarning ? "text-amber-600" : "text-slate-600")
         )}>
           {machine.latest_value_summary || 'No data'}
         </p>
       </div>
       {!isDimmed && machine.machine_status === 'active' && (
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent h-1/2 w-full -translate-y-full group-hover:animate-[scan_2s_linear_infinite]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent h-1/2 w-full -translate-y-full group-hover:animate-[scan_2s_linear_infinite]" />
       )}
     </motion.div>
   );
@@ -1438,17 +1441,17 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 border-none">
+                <Card className="bg-white border-blue-100 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
-                    <Activity className="w-4 h-4 text-blue-100" />
-                    <p className="text-[10px] uppercase font-black text-blue-100">Performance Score</p>
+                    <Activity className="w-4 h-4 text-blue-600" />
+                    <p className="text-[10px] uppercase font-black text-slate-400">Performance Score</p>
                   </div>
                   <div className="flex items-end justify-between">
-                    <p className="text-3xl font-black text-white">
+                    <p className="text-3xl font-black text-blue-600">
                       {Math.max(0, 100 - (openAlertCount * 5))}
                       <span className="text-xs ml-1 opacity-60">%</span>
                     </p>
-                    <span className="text-[9px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full uppercase">Optimal</span>
+                    <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full uppercase">Optimal</span>
                   </div>
                 </Card>
                 <Card>
@@ -1857,8 +1860,8 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                       {/* Left Side: Zone A & B */}
                       <div className="space-y-8">
                         {/* ZONE A Container */}
-                        <div className="border-2 border-emerald-500/30 rounded-3xl p-6 relative bg-emerald-500/5">
-                          <div className="absolute -top-3 left-6 bg-[#0f172a] px-3 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone A — Production High-Care</div>
+                        <div className="border-2 border-emerald-500/10 rounded-3xl p-6 relative bg-emerald-500/5">
+                          <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em]">Zone A — Production High-Care</div>
                           
                           <div className="grid grid-cols-2 gap-6 mt-4">
                             {/* Sub-Zone: Salle Propre */}
@@ -1877,7 +1880,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                             </div>
                             {/* Sub-Zone: Sterilisation */}
                             <div className="border border-dashed border-blue-500/20 rounded-2xl p-4 bg-blue-500/5">
-                              <span className="text-[9px] text-blue-400/60 font-black uppercase mb-3 block">Stérilisation</span>
+                              <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Stérilisation</span>
                               <div className="space-y-3">
                                 {filteredMachineView.filter(m => m.location?.includes('Stérilisation') || (m.location === 'Zone A' && m.type?.includes('Autoclave'))).map(m => (
                                   <MachineBlock key={m.machine_id} machine={m} variant="blue" onClick={() => setSelectedMachineId(m.machine_id)} />
@@ -1887,7 +1890,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                           </div>
 
                           {/* Ligne 1 Section */}
-                          <div className="mt-6 border border-dashed border-slate-700 rounded-2xl p-6 bg-slate-800/20">
+                          <div className="mt-6 border border-dashed border-slate-200 rounded-2xl p-6 bg-white/40">
                              <div className="flex items-center justify-between mb-4">
                                <span className="text-[9px] text-slate-500 font-black uppercase">Ligne 1 — Packaging</span>
                                <div className="flex gap-2">
@@ -1913,8 +1916,8 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                         </div>
 
                         {/* ZONE B Container */}
-                        <div className="border-2 border-blue-500/30 rounded-3xl p-6 relative bg-blue-500/5">
-                          <div className="absolute -top-3 left-6 bg-[#0f172a] px-3 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone B — Manufacturing & Primary</div>
+                        <div className="border-2 border-blue-500/10 rounded-3xl p-6 relative bg-blue-500/5">
+                          <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">Zone B — Manufacturing & Primary</div>
                           <div className="grid grid-cols-2 gap-6 mt-4">
                              <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
                                 <span className="text-[9px] text-blue-500/60 font-black uppercase mb-3 block">Fabrication</span>
