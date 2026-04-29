@@ -1962,24 +1962,29 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                       {/* Right Side: Zone F & Legend */}
                       <div className="flex flex-col gap-8">
                          {/* ZONE F Container */}
-                         <div className="border-2 border-slate-600/30 rounded-3xl p-6 relative bg-slate-800/10 flex-1">
-                            <div className="absolute -top-3 left-6 bg-[#0f172a] px-3 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone F — Utilities</div>
+                         <div className={cn(
+                           "border-2 rounded-3xl p-6 relative transition-all duration-700 flex-1 shadow-inner",
+                           (zoneFilter === 'all' || zoneFilter === 'Zone F') 
+                             ? "border-slate-200 bg-white opacity-100 scale-100" 
+                             : "border-slate-100 bg-slate-50 opacity-20 scale-[0.98] grayscale pointer-events-none"
+                         )}>
+                            <div className="absolute -top-3 left-6 bg-slate-50 px-3 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Zone F — Utilities</div>
                             
                             <div className="mt-4 space-y-6">
                                {filteredMachineView.filter(m => m.location === 'Zone F').map(m => (
-                                  <div key={m.machine_id} className="p-6 rounded-2xl border-2 border-red-500/20 bg-red-500/5 hover:bg-red-500/10 transition-all cursor-pointer group" onClick={() => setSelectedMachineId(m.machine_id)}>
+                                  <div key={m.machine_id} className="p-6 rounded-2xl border-2 border-red-100 bg-white hover:border-red-200 transition-all cursor-pointer group shadow-sm" onClick={() => setSelectedMachineId(m.machine_id)}>
                                      <div className="flex items-center gap-4 mb-4">
-                                        <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
-                                        <h3 className="text-lg font-black text-white uppercase">{m.machine_name}</h3>
+                                        <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse shadow-md" />
+                                        <h3 className="text-lg font-black text-slate-800 uppercase">{m.machine_name}</h3>
                                      </div>
-                                     <div className="space-y-2 opacity-60">
-                                        <div className="flex justify-between text-[10px] font-bold text-red-200">
+                                     <div className="space-y-2">
+                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
                                            <span>STATUS:</span>
-                                           <span className="uppercase">{m.machine_status}</span>
+                                           <span className="uppercase text-red-600">{m.machine_status}</span>
                                         </div>
-                                        <div className="flex justify-between text-[10px] font-bold text-red-200">
+                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
                                            <span>MESURE LIVE:</span>
-                                           <span>{m.latest_value_summary}</span>
+                                           <span className="text-slate-800">{m.latest_value_summary}</span>
                                         </div>
                                      </div>
                                      <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
