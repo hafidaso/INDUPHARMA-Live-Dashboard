@@ -306,19 +306,21 @@ export default function App() {
 
     // 2. Send the update to the external backend via webhook (Closed-Loop Sync)
     try {
-      await fetch('https://fusion-ai-api.medifus.dev/webhooks/webhook-rxho8iyi2613mbn6fwi5drzj/technicien', {
+      const targetUrl = 'https://fusion-ai-api.medifus.dev/webhooks/webhook-rxho8iyi2613mbn6fwi5drzj/technicien';
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+      
+      await fetch(proxyUrl, {
         method: 'POST',
-        mode: 'no-cors', // Bypass CORS for one-way webhook
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           incident_id: incidentId,
           status,
           technician,
           updated_at: new Date().toISOString(),
           action: 'technician_update'
-        }).toString()
+        })
       });
-      console.log(`[Webhook] Sent update for ${incidentId}: ${status} (URL Encoded)`);
+      console.log(`[Webhook] Sent update for ${incidentId}: ${status}`);
     } catch (e) {
       console.error('[Webhook Error] Failed to send update:', e);
     }
