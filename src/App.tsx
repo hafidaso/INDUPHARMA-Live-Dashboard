@@ -1254,7 +1254,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
     <div className="min-h-screen bg-[#F7F4EE] flex items-center justify-center px-6">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
         <div className="text-center mb-6">
-          <img src="/logo.png" alt="INDUPHARMA" className="h-14 w-auto mx-auto mb-3" />
+          <img src="/logo.png" alt="INDUPHARMA" className="h-28 w-auto mx-auto mb-4" />
           <h1 className="text-slate-900 text-xl font-black">INDUPHARMA Access</h1>
           <p className="text-slate-500 text-sm mt-1">Login as Admin or Technician</p>
         </div>
@@ -1332,7 +1332,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
         <header className="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-50">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="INDUPHARMA" className="h-10 sm:h-12 w-auto" />
+              <img src="/logo.png" alt="INDUPHARMA" className="h-14 sm:h-16 w-auto" />
               <div>
                 <h1 className="text-base sm:text-lg font-black">Technician Dashboard</h1>
                 <p className="text-[10px] sm:text-xs text-slate-500">Connected as {authUser.name}</p>
@@ -1471,7 +1471,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-6">
           <div className="flex items-center gap-3 sm:gap-4 w-full lg:w-auto">
-            <img src="/logo.png" alt="INDUPHARMA" className="h-14 sm:h-20 w-auto" />
+            <img src="/logo.png" alt="INDUPHARMA" className="h-20 sm:h-28 w-auto" />
             <div className="flex-1">
               <div className="flex items-center gap-2 sm:gap-3">
                 {error ? (
@@ -3130,7 +3130,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
       {/* Footer */}
       <footer className="max-w-[1600px] mx-auto p-8 flex flex-col md:flex-row items-center justify-between border-t border-slate-200 mt-12 text-slate-400">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="INDUPHARMA" className="h-12 w-auto" />
+          <img src="/logo.png" alt="INDUPHARMA" className="h-16 w-auto" />
           <span className="text-xs font-black uppercase tracking-widest">© 2026 INDUPHARMA Industrial System</span>
         </div>
         <div className="flex flex-col items-center md:items-end gap-3 mt-6 md:mt-0">
