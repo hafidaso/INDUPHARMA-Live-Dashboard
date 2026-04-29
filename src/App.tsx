@@ -2066,6 +2066,38 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Methodology & Sources */}
+                <div className="mt-8 pt-6 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Info className="w-4 h-4 text-blue-500" />
+                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Méthodologie & Sources Industrielles</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Le calcul de l'impact financier repose sur un modèle de <strong>Gestion des Risques Qualité (ICH Q9)</strong>, standard de l'industrie pharmaceutique. Contrairement à une approche linéaire, nous intégrons la <strong>Criticité GMP</strong> des équipements.
+                      </p>
+                      <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 font-mono text-[9px] text-slate-700">
+                        <p className="font-bold mb-1">Formule de Calcul :</p>
+                        <p>Total = (Σ Temps d'arrêt × Coût/min × Multiplicateur) + Risque de Lot</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-tight">Références Appliquées :</p>
+                      <ul className="space-y-2">
+                        <li className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1" />
+                          <p className="text-[10px] text-slate-600 font-medium"><strong>ISPE Baseline Guides :</strong> Principes de maintenance basée sur le risque pour minimiser l'impact GMP.</p>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1" />
+                          <p className="text-[10px] text-slate-600 font-medium"><strong>Benchmarks Industriels :</strong> Évaluation du "True Cost of Downtime" incluant la main-d'œuvre inactive et les pertes de rendement.</p>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Criticality Legend */}
                 <div className="mt-6 pt-4 border-t border-slate-100 flex flex-wrap gap-4">
