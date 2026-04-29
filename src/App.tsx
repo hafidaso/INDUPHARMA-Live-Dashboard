@@ -38,7 +38,10 @@ import {
   BarChart3,
   ListFilter,
   UserCheck,
-  ClipboardList
+  ClipboardList,
+  BrainCircuit,
+  TrendingDown,
+  ShieldOff
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -80,10 +83,13 @@ import {
   MachineStatus,
   ReadingStatus,
   Severity,
-  IncidentStatus
+  IncidentStatus,
+  PredictiveWarning,
+  PredictiveRiskLevel
 } from './types';
 
 type ActionProgressStatus = 'done' | 'in_progress' | 'blocked' | 'not_yet';
+type TabType = 'Vue Globale' | 'Machines' | 'Capteurs' | 'Incidents' | 'Maintenance' | 'KPIs' | 'Seuils' | 'Techniciens' | 'Predictive';
 
 type DemoUser = {
   email: string;
@@ -399,6 +405,182 @@ export default function App() {
       };
     });
   }, [incidentsWithWorkflow]);
+
+  // -----------------------------------------------------------------------
+  // RULE-BASED PREDICTIVE WARNING ENGINE
+  // Applies industrial GMP thresholds to live sensor readings.
+  // NOTE: This is a rule-based system, NOT a machine learning model.
+  // -----------------------------------------------------------------------
+  const predictiveWarnings = useMemo<PredictiveWarning[]>(() => {
+    if (!data?.machineView || !data?.machines) return [];
+    const warnings: PredictiveWarning[] = [];
+    const now = new Date().toISOString();
+
+    // GMP threshold rules per sensor type
+    const RULES: Array<{
+      sensor: string;
+      unit: string;
+      rule_name: string;
+      low_threshold: number;
+      medium_threshold: number;
+      high_threshold: number;
+      message_low_fr: string;
+      message_medium_fr: string;
+      message_high_fr: string;
+      message_low_en: string;
+      message_medium_en: string;
+      message_high_en: string;
+      recommendation: string;
+    }> = [
+      {
+        sensor: 'temperature',
+        unit: '°C',
+        rule_name: 'Temperature Drift Rule',
+        low_threshold: 28,
+        medium_threshold: 35,
+        high_threshold: 45,
+        message_low_fr: 'Température légèrement élevée. Surveiller l\'évolution.',
+        message_medium_fr: 'Température en hausse progressive. Risque de dépassement GMP dans les prochaines minutes.',
+        message_high_fr: '⚠️ Température critique détectée. Dépassement du seuil GMP imminent. Intervention requise.',
+        message_low_en: 'Temperature slightly elevated. Monitor trend closely.',
+        message_medium_en: 'Temperature rising trend detected. GMP threshold breach risk in upcoming minutes.',
+        message_high_en: '⚠️ Critical temperature detected. GMP threshold breach imminent. Immediate action required.',
+        recommendation: 'Vérifier le système de refroidissement, contrôler le capteur et alerter le responsable qualité.'
+      },
+      {
+        sensor: 'humidite',
+        unit: '%',
+        rule_name: 'Humidity Excursion Rule',
+        low_threshold: 62,
+        medium_threshold: 68,
+        high_threshold: 75,
+        message_low_fr: 'Humidité légèrement au-dessus de la normale. Aucune action immédiate.',
+        message_medium_fr: 'Humidité en hausse. Risque de contamination des produits sensibles si non contrôlé.',
+        message_high_fr: '⚠️ Humidité critique détectée. Risque immédiat de non-conformité GMP.',
+        message_low_en: 'Humidity slightly above normal. No immediate action required.',
+        message_medium_en: 'Rising humidity detected. Risk of contamination for moisture-sensitive products.',
+        message_high_en: '⚠️ Critical humidity level. Immediate GMP non-conformity risk.',
+        recommendation: 'Vérifier la climatisation, inspecter les joints d\'étanchéité et déclencher une alarme qualité si > 72%.'
+      },
+      {
+        sensor: 'pression',
+        unit: 'bar',
+        rule_name: 'Pressure Anomaly Rule',
+        low_threshold: 1.8,
+        medium_threshold: 2.1,
+        high_threshold: 2.4,
+        message_low_fr: 'Pression légèrement au-dessus de la normale.',
+        message_medium_fr: 'Pression en hausse. Risque de surpression si la tendance se maintient.',
+        message_high_fr: '⚠️ Surpression critique. Isoler l\'équipement immédiatement.',
+        message_low_en: 'Pressure slightly above normal.',
+        message_medium_en: 'Pressure rising trend. Over-pressure risk if trend continues.',
+        message_high_en: '⚠️ Critical over-pressure. Isolate equipment immediately.',
+        recommendation: 'Vérifier la valve de sécurité, inspecter les conduites et arrêter le cycle en cours si nécessaire.'
+      },
+      {
+        sensor: 'vibration',
+        unit: 'g',
+        rule_name: 'Vibration Rising Trend Rule',
+        low_threshold: 0.8,
+        medium_threshold: 1.5,
+        high_threshold: 2.5,
+        message_low_fr: 'Légère vibration détectée. Prévoir inspection préventive.',
+        message_medium_fr: 'Vibration anormale croissante. Inspection des roulements recommandée.',
+        message_high_fr: '⚠️ Vibration critique. Risque de panne imminente. Arrêt préventif recommandé.',
+        message_low_en: 'Slight vibration detected. Schedule preventive inspection.',
+        message_medium_en: 'Vibration rising trend detected. Bearing inspection recommended.',
+        message_high_en: '⚠️ Critical vibration level. Imminent failure risk. Preventive shutdown recommended.',
+        recommendation: 'Inspecter les roulements, vérifier l\'alignement mécanique et programmer une maintenance corrective.'
+      },
+    ];
+
+    // Traverse all equipment and their recent measures
+    (data.machineView as DashboardMachineView[]).forEach((mv) => {
+      const rawMachine = (data.machines as Machine[]).find(m => m.id === mv.machine_id);
+      // Access raw sensor readings from sensorReadings or histories
+      const history: any[] = data.histories?.[mv.machine_id] ?? [];
+      const readings: any[] = data.sensorReadings?.filter((r: any) => r.machine_id === mv.machine_id) ?? [];
+
+      // Build a value map for each sensor from readings and history
+      const sensorValues: Record<string, { value: number; unit: string }> = {};
+
+      readings.forEach((r: any) => {
+        if (r.temperature != null) sensorValues['temperature'] = { value: r.temperature, unit: '°C' };
+        if (r.pressure != null) sensorValues['pression'] = { value: r.pressure, unit: 'bar' };
+        if (r.vibration != null) sensorValues['vibration'] = { value: r.vibration, unit: 'g' };
+        if (r.infrared != null) sensorValues['temperature'] = { value: r.infrared, unit: '°C' };
+      });
+
+      // Also check the value summary string from machineView for quick extraction
+      const valueSummary = mv.latest_value_summary ?? '';
+      const summaryMatch = valueSummary.match(/([\w]+):\s*([\d.]+)\s*(.*)/);
+      if (summaryMatch) {
+        const [, sType, sVal, sUnit] = summaryMatch;
+        if (!sensorValues[sType]) {
+          sensorValues[sType] = { value: parseFloat(sVal), unit: sUnit?.trim() ?? '' };
+        }
+      }
+
+      // If the active incident is flagged and we have alerte values, add them
+      if (mv.active_incident) {
+        // parse value from latest_value_summary
+        if (summaryMatch) {
+          const [, sType, sVal] = summaryMatch;
+          const numVal = parseFloat(sVal);
+          if (!sensorValues[sType]) {
+            sensorValues[sType] = { value: numVal, unit: '' };
+          }
+        }
+      }
+
+      // Run each rule against available sensor values
+      RULES.forEach((rule, ruleIdx) => {
+        const sensor = sensorValues[rule.sensor];
+        if (!sensor) return;
+
+        const v = sensor.value;
+        let risk_level: PredictiveRiskLevel | null = null;
+        let message_fr = '';
+        let message_en = '';
+
+        if (v >= rule.high_threshold) {
+          risk_level = 'high';
+          message_fr = rule.message_high_fr;
+          message_en = rule.message_high_en;
+        } else if (v >= rule.medium_threshold) {
+          risk_level = 'medium';
+          message_fr = rule.message_medium_fr;
+          message_en = rule.message_medium_en;
+        } else if (v >= rule.low_threshold) {
+          risk_level = 'low';
+          message_fr = rule.message_low_fr;
+          message_en = rule.message_low_en;
+        }
+
+        if (risk_level) {
+          warnings.push({
+            id: `PW-${mv.machine_id}-${ruleIdx}`,
+            machine_id: mv.machine_id,
+            machine_name: mv.machine_name,
+            zone: mv.location,
+            sensor_type: rule.sensor,
+            current_value: v,
+            unit: sensor.unit || rule.unit,
+            risk_level,
+            rule_name: rule.rule_name,
+            message_fr,
+            message_en,
+            recommendation: rule.recommendation,
+            generated_at: now,
+          });
+        }
+      });
+    });
+
+    // Sort: high > medium > low
+    const riskOrder: Record<PredictiveRiskLevel, number> = { high: 0, medium: 1, low: 2 };
+    return warnings.sort((a, b) => riskOrder[a.risk_level] - riskOrder[b.risk_level]);
+  }, [data]);
 
   const technicianGroups = useMemo(() => {
     const allTechs: Technician[] = data?.technicians ?? [];
@@ -1314,7 +1496,8 @@ export default function App() {
             { id: 'Maintenance', icon: Wrench },
             { id: 'KPIs', icon: BarChart3 },
             { id: 'Seuils', icon: ListFilter },
-            { id: 'Techniciens', icon: UserCheck }
+            { id: 'Techniciens', icon: UserCheck },
+            { id: 'Predictive', icon: BrainCircuit }
           ].map(tab => (
             <button
               key={tab.id}
@@ -2093,6 +2276,156 @@ export default function App() {
                        ))}
                     </div>
                 </Card>
+            </motion.div>
+          )}
+          {activeTab === 'Predictive' && (
+            <motion.div key="predictive" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              {/* Disclaimer Banner */}
+              <div className="flex items-center gap-3 px-5 py-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                <BrainCircuit className="w-6 h-6 text-indigo-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-black text-indigo-900 uppercase tracking-widest">Rule-Based Predictive Alerts</p>
+                  <p className="text-xs text-indigo-600 mt-0.5">
+                    Ce module applique des règles industrielles GMP/USP prédéfinies sur les données capteurs en temps réel.
+                    <strong> Ce n'est pas un modèle ML/IA</strong> — les alertes sont générées par des seuils de référence industriels.
+                  </p>
+                </div>
+                <span className="ml-auto shrink-0 px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-full">
+                  Rule-Based Engine v1.0
+                </span>
+              </div>
+
+              {/* Summary Counters */}
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: 'High Risk', count: predictiveWarnings.filter(w => w.risk_level === 'high').length, color: 'red', icon: ShieldOff },
+                  { label: 'Medium Risk', count: predictiveWarnings.filter(w => w.risk_level === 'medium').length, color: 'amber', icon: AlertTriangle },
+                  { label: 'Low Risk', count: predictiveWarnings.filter(w => w.risk_level === 'low').length, color: 'blue', icon: TrendingDown },
+                ].map(({ label, count, color, icon: Icon }) => (
+                  <div key={label} className={cn(
+                    "flex items-center gap-4 px-5 py-4 rounded-xl border-2 bg-white",
+                    color === 'red' && "border-red-200",
+                    color === 'amber' && "border-amber-200",
+                    color === 'blue' && "border-blue-200",
+                  )}>
+                    <div className={cn("p-2.5 rounded-lg",
+                      color === 'red' && "bg-red-100",
+                      color === 'amber' && "bg-amber-100",
+                      color === 'blue' && "bg-blue-100",
+                    )}>
+                      <Icon className={cn("w-5 h-5",
+                        color === 'red' && "text-red-600",
+                        color === 'amber' && "text-amber-600",
+                        color === 'blue' && "text-blue-600",
+                      )} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+                      <p className={cn("text-3xl font-black",
+                        color === 'red' && "text-red-600",
+                        color === 'amber' && "text-amber-600",
+                        color === 'blue' && "text-blue-600",
+                      )}>{count}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Warning Cards */}
+              {predictiveWarnings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <ShieldCheck className="w-16 h-16 text-emerald-400 mb-4" />
+                  <p className="text-lg font-black text-slate-800">Aucune alerte prédictive détectée</p>
+                  <p className="text-sm text-slate-400 mt-1">Tous les capteurs sont dans les limites GMP définies. Système nominal.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {predictiveWarnings.map((w) => (
+                    <div key={w.id} className={cn(
+                      "bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex",
+                      w.risk_level === 'high' && "border-red-200",
+                      w.risk_level === 'medium' && "border-amber-200",
+                      w.risk_level === 'low' && "border-blue-200",
+                    )}>
+                      {/* Accent Bar */}
+                      <div className={cn("w-1.5 shrink-0",
+                        w.risk_level === 'high' && "bg-red-500",
+                        w.risk_level === 'medium' && "bg-amber-400",
+                        w.risk_level === 'low' && "bg-blue-400",
+                      )} />
+
+                      <div className="p-5 flex-1">
+                        {/* Top row */}
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-black text-slate-800">{w.machine_name}</span>
+                              <span className="text-[10px] text-slate-400 font-bold">·</span>
+                              <span className="text-[10px] text-slate-500 font-bold">{w.zone}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full border",
+                                w.risk_level === 'high' && "bg-red-50 text-red-700 border-red-200",
+                                w.risk_level === 'medium' && "bg-amber-50 text-amber-700 border-amber-200",
+                                w.risk_level === 'low' && "bg-blue-50 text-blue-700 border-blue-200",
+                              )}>
+                                {w.risk_level === 'high' ? '🔴 High Risk' : w.risk_level === 'medium' ? '🟠 Medium Risk' : '🔵 Low Risk'}
+                              </span>
+                              <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-full border bg-slate-50 text-slate-500 border-slate-200">
+                                {w.rule_name}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{w.sensor_type}</p>
+                            <p className={cn("text-2xl font-black",
+                              w.risk_level === 'high' && "text-red-600",
+                              w.risk_level === 'medium' && "text-amber-600",
+                              w.risk_level === 'low' && "text-blue-600",
+                            )}>
+                              {w.current_value}<span className="text-sm ml-0.5">{w.unit}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">🇫🇷 Message</p>
+                            <p className="text-xs text-slate-700 font-medium">{w.message_fr}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">🇬🇧 Message</p>
+                            <p className="text-xs text-slate-700 font-medium">{w.message_en}</p>
+                          </div>
+                        </div>
+
+                        {/* Recommendation */}
+                        <div className={cn("rounded-lg p-3 border",
+                          w.risk_level === 'high' && "bg-red-50 border-red-100",
+                          w.risk_level === 'medium' && "bg-amber-50 border-amber-100",
+                          w.risk_level === 'low' && "bg-blue-50 border-blue-100",
+                        )}>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                            <ShieldAlert className="w-3 h-3" /> Recommandation
+                          </p>
+                          <p className="text-xs font-bold text-slate-700">{w.recommendation}</p>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                          <span className="text-[10px] text-slate-400 font-bold">ID: {w.id}</span>
+                          <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {new Date(w.generated_at).toLocaleTimeString('fr-FR')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

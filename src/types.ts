@@ -117,3 +117,21 @@ export interface DashboardKpiSummary {
   status: 'normal' | 'warning' | 'critical' | 'error';
   note: string;
 }
+
+export type PredictiveRiskLevel = 'low' | 'medium' | 'high';
+
+export interface PredictiveWarning {
+  id: string;
+  machine_id: string;
+  machine_name: string;
+  zone: string;
+  sensor_type: string;
+  current_value: number;
+  unit: string;
+  risk_level: PredictiveRiskLevel;
+  rule_name: string;
+  message_fr: string;
+  message_en: string;
+  recommendation: string;
+  generated_at: string;
+}
