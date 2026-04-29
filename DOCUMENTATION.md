@@ -132,7 +132,27 @@ The system expects a webhook response with the following schema:
 
 ---
 
-## 7. Conclusion
+---
+
+## 8. Regulatory References & Standards Compliance
+
+The logic implemented in the INDUPHARMA Dashboard is aligned with the following global pharmaceutical and industrial standards:
+
+### 8.1 Quality Risk Management (Cost Impact Logic)
+- **[ICH Q9 Quality Risk Management](https://www.ema.europa.eu/en/documents/scientific-guideline/ich-q9-quality-risk-management-step-5_en.pdf)**: Foundation for the weighted risk multipliers used in the Cost Impact Estimator.
+- **[ISPE Guide: Maintenance](https://ispe.org/publications/guidance-documents/maintenance)**: Best practices for industrial asset management in GMP environments.
+
+### 8.2 Data Integrity (Persistence & Audit Logs)
+- **[FDA 21 CFR Part 11](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/part-11-electronic-records-electronic-signatures-scope-and-application)**: Guidelines for electronic records and audit trails, ensuring data reliability.
+- **[ALCOA+ Principles](https://www.who.int/publications/m/item/annex-5-guidance-on-good-data-and-record-management-practices)**: Ensuring data is Attributable, Legible, Contemporaneous, Original, and Accurate.
+
+### 8.3 Equipment Specific Standards (Threshold Gauges)
+- **[ISO 17665 (Moist Heat Sterilization)](https://www.iso.org/standard/36732.html)**: Reference for Autoclave temperature/pressure validation.
+- **[USP <659> Packaging and Storage](https://www.usp.org/sites/default/files/usp/document/our-work/customized-outreach/packaging-storage-requirements.pdf)**: Reference for Cold Room (2-8°C) and Controlled Room Temperature (CRT) monitoring.
+
+---
+
+## 9. Conclusion
 The **INDUPHARMA Live Dashboard** represents a significant step towards Industry 4.0 for pharmaceutical manufacturing. By combining real-time telemetry with academic-grade documentation and industrial compliance standards, the project fulfills all operational and educational requirements.
 
 ---

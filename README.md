@@ -44,6 +44,16 @@ This is a professional-grade React + TypeScript dashboard specifically engineere
 
 ---
 
+## 🏛️ Standards Compliance
+
+The system is engineered to align with global pharmaceutical and quality standards:
+- **Quality Risk Management**: Logic based on **ICH Q9** guidelines.
+- **Data Integrity**: Audit trail persistence inspired by **FDA 21 CFR Part 11**.
+- **Cold Chain Compliance**: Temperature monitoring ranges aligned with **USP <659>**.
+- **Asset Maintenance**: Built following **ISPE GAMP 5** industrial frameworks.
+
+---
+
 ## 📱 Industrial Responsive Design
 - **Tablet Optimized**: Specially designed for industrial tablets used by floor technicians.
 - **Mobile First**: Full functionality preserved on mobile devices for managers on the move.
