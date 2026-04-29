@@ -2374,6 +2374,222 @@ export default function App() {
                        ))}
                     </div>
                 </Card>
+
+                {/* Escalation Matrix */}
+                {(() => {
+                  const ESCALATION_LEVELS = [
+                    { level: 1, title: 'Technician', contact: 'On-duty Technician', delay: 10, color: 'amber', action: 'Immediate intervention required' },
+                    { level: 2, title: 'Maintenance Manager', contact: 'Chef de Maintenance', delay: 20, color: 'orange', action: 'Coordinate maintenance team response' },
+                    { level: 3, title: 'QA Manager', contact: 'Responsable Qualité', delay: 30, color: 'red', action: 'Assess GMP compliance risk & batch quarantine' },
+                    { level: 4, title: 'Production Director', contact: 'Directeur de Production', delay: 999, color: 'purple', action: 'Executive escalation — line shutdown decision' },
+                  ];
+
+                  const criticalIncidents = incidentsWithWorkflow.filter(
+                    (i: Incident) => (i.severity === 'critical' || i.severity === 'high') && (i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated')
+                  );
+
+                  if (criticalIncidents.length === 0) return null;
+
+                  return (
+                    <Card title="Escalation Matrix — Incidents Critiques" icon={ShieldAlert}>
+                      <div className="mb-4 flex items-start justify-between gap-4">
+                        <p className="text-xs text-slate-400 font-bold max-w-xl">
+                          Chaque incident critique déclenche automatiquement une chaîne d'escalation à 4 niveaux.
+                          Si le technicien ne prend pas en charge l'incident sous <strong>10 min</strong>, l'escalation monte d'un niveau.
+                        </p>
+                        <span className="shrink-0 px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-red-50 text-red-600 border border-red-200 rounded-full animate-pulse">
+                          {criticalIncidents.length} Critical
+                        </span>
+                      </div>
+
+                      {/* Escalation Chain Header */}
+                      <div className="grid grid-cols-4 gap-2 mb-6">
+                        {ESCALATION_LEVELS.map((lvl) => (
+                          <div key={lvl.level} className={cn(
+                            "rounded-xl border p-3 text-center",
+                            lvl.color === 'amber' && "bg-amber-50 border-amber-200",
+                            lvl.color === 'orange' && "bg-orange-50 border-orange-200",
+                            lvl.color === 'red' && "bg-red-50 border-red-200",
+                            lvl.color === 'purple' && "bg-purple-50 border-purple-200",
+                          )}>
+                            <div className={cn(
+                              "w-7 h-7 rounded-full flex items-center justify-center text-xs font-black mx-auto mb-2",
+                              lvl.color === 'amber' && "bg-amber-200 text-amber-800",
+                              lvl.color === 'orange' && "bg-orange-200 text-orange-800",
+                              lvl.color === 'red' && "bg-red-200 text-red-800",
+                              lvl.color === 'purple' && "bg-purple-200 text-purple-800",
+                            )}>L{lvl.level}</div>
+                            <p className="text-[10px] font-black text-slate-700 uppercase tracking-tight">{lvl.title}</p>
+                            <p className="text-[9px] text-slate-500 font-bold mt-0.5">{lvl.contact}</p>
+                            <p className={cn(
+                              "text-[9px] font-black mt-1.5",
+                              lvl.color === 'amber' && "text-amber-600",
+                              lvl.color === 'orange' && "text-orange-600",
+                              lvl.color === 'red' && "text-red-600",
+                              lvl.color === 'purple' && "text-purple-600",
+                            )}>{lvl.delay < 999 ? `T + ${lvl.delay} min` : 'Final'}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Per-Incident Escalation Status */}
+                      <div className="space-y-5">
+                        {criticalIncidents.map((incident: Incident) => {
+                          const progress = incidentProgress[incident.id];
+                          const isAcknowledged = progress?.status === 'in_progress' || progress?.status === 'done';
+
+                          // Time elapsed calculation (demo: based on detection timestamp or use simulated)
+                          let elapsedMin = 0;
+                          try {
+                            const detectedAt = new Date(incident.detected_at);
+                            elapsedMin = isNaN(detectedAt.getTime())
+                              ? (incident.status === 'escalated' ? 22 : incident.status === 'in_progress' ? 8 : 14)
+                              : Math.floor((Date.now() - detectedAt.getTime()) / 60000);
+                          } catch { elapsedMin = 14; }
+
+                          // Determine current escalation level
+                          let currentLevel = 1;
+                          if (isAcknowledged) {
+                            currentLevel = 1;
+                          } else if (elapsedMin >= 30) {
+                            currentLevel = 4;
+                          } else if (elapsedMin >= 20) {
+                            currentLevel = 3;
+                          } else if (elapsedMin >= 10) {
+                            currentLevel = 2;
+                          } else {
+                            currentLevel = 1;
+                          }
+
+                          const levelInfo = ESCALATION_LEVELS[currentLevel - 1];
+                          const nextLevel = ESCALATION_LEVELS[currentLevel] ?? null;
+                          const timeToNextEscalation = nextLevel
+                            ? Math.max(0, nextLevel.delay - elapsedMin)
+                            : null;
+                          const progressPct = nextLevel
+                            ? Math.min(100, Math.round((elapsedMin / nextLevel.delay) * 100))
+                            : 100;
+                          const reason = isAcknowledged
+                            ? 'Incident pris en charge — escalation suspendue'
+                            : elapsedMin >= 10
+                              ? `Aucune réponse technicien après ${elapsedMin} min`
+                              : `Incident détecté, en attente de prise en charge (${10 - elapsedMin} min restantes)`;
+
+                          return (
+                            <div key={incident.id} className={cn(
+                              "border rounded-xl overflow-hidden",
+                              isAcknowledged ? "border-emerald-200 bg-emerald-50/30" : currentLevel >= 3 ? "border-red-200 bg-red-50/20" : currentLevel === 2 ? "border-orange-200 bg-orange-50/20" : "border-amber-200 bg-amber-50/20"
+                            )}>
+                              {/* Incident Header */}
+                              <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100 bg-white/60">
+                                <div className="flex items-center gap-3">
+                                  <ShieldAlert className="w-4 h-4 text-red-500" />
+                                  <span className="text-xs font-black text-slate-900 uppercase">{incident.machine_name || incident.id}</span>
+                                  <Badge status={incident.severity}>{incident.severity}</Badge>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> {elapsedMin} min écoulées
+                                  </span>
+                                  {isAcknowledged && (
+                                    <span className="px-2.5 py-0.5 text-[10px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full">✓ Pris en charge</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Left: Status */}
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Niveau actuel</span>
+                                    <span className={cn(
+                                      "px-2.5 py-0.5 text-[10px] font-black uppercase rounded-full border",
+                                      isAcknowledged ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                        : levelInfo.color === 'amber' ? "bg-amber-50 text-amber-700 border-amber-200"
+                                        : levelInfo.color === 'orange' ? "bg-orange-50 text-orange-700 border-orange-200"
+                                        : levelInfo.color === 'red' ? "bg-red-50 text-red-700 border-red-200"
+                                        : "bg-purple-50 text-purple-700 border-purple-200"
+                                    )}>
+                                      {isAcknowledged ? '✓ Résolu' : `L${currentLevel} — ${levelInfo.title}`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Escaladé à</span>
+                                    <span className="text-xs font-black text-slate-700">{isAcknowledged ? progress?.technician || 'Technicien' : levelInfo.contact}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Temps restant</span>
+                                    <span className={cn(
+                                      "text-sm font-black",
+                                      isAcknowledged ? "text-emerald-600"
+                                        : timeToNextEscalation !== null && timeToNextEscalation <= 3 ? "text-red-600 animate-pulse"
+                                        : "text-amber-600"
+                                    )}>
+                                      {isAcknowledged ? '— Suspendu' : timeToNextEscalation !== null ? `${timeToNextEscalation} min` : 'Niveau final'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Raison</span>
+                                    <p className="text-[10px] text-slate-600 font-medium italic">{reason}</p>
+                                  </div>
+                                </div>
+
+                                {/* Right: Level Ladder */}
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Progression escalation</p>
+                                  <div className="space-y-2">
+                                    {ESCALATION_LEVELS.map((lvl) => {
+                                      const isActive = !isAcknowledged && lvl.level === currentLevel;
+                                      const isPast = !isAcknowledged && lvl.level < currentLevel;
+                                      return (
+                                        <div key={lvl.level} className={cn(
+                                          "flex items-center gap-2.5 px-3 py-2 rounded-lg border text-[10px] font-bold transition-all",
+                                          isActive ? cn(
+                                            "border-2 text-white",
+                                            lvl.color === 'amber' && "bg-amber-500 border-amber-600",
+                                            lvl.color === 'orange' && "bg-orange-500 border-orange-600",
+                                            lvl.color === 'red' && "bg-red-500 border-red-600",
+                                            lvl.color === 'purple' && "bg-purple-600 border-purple-700",
+                                          ) : isPast ? "bg-slate-200 border-slate-300 text-slate-500 opacity-60"
+                                            : isAcknowledged && lvl.level === 1 ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                                            : "bg-slate-50 border-slate-200 text-slate-400"
+                                        )}>
+                                          <span className={cn(
+                                            "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0",
+                                            isActive ? "bg-white/30" : isPast ? "bg-slate-300" : isAcknowledged && lvl.level === 1 ? "bg-emerald-200" : "bg-slate-200"
+                                          )}>L{lvl.level}</span>
+                                          <span>{lvl.title}</span>
+                                          {isActive && <span className="ml-auto text-[9px] font-black opacity-80 animate-pulse">ACTIF</span>}
+                                          {isPast && <span className="ml-auto text-[9px] font-black opacity-60">✓ PASSÉ</span>}
+                                          {isAcknowledged && lvl.level === 1 && <span className="ml-auto text-[9px] font-black text-emerald-700">✓ RÉPONDU</span>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                  {/* Progress bar */}
+                                  {!isAcknowledged && nextLevel && (
+                                    <div className="mt-3">
+                                      <div className="flex justify-between text-[9px] text-slate-400 font-bold mb-1">
+                                        <span>Progression vers L{currentLevel + 1}</span>
+                                        <span>{progressPct}%</span>
+                                      </div>
+                                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div className={cn(
+                                          "h-full rounded-full transition-all duration-500",
+                                          progressPct >= 90 ? "bg-red-500" : progressPct >= 70 ? "bg-orange-400" : "bg-amber-400"
+                                        )} style={{ width: `${progressPct}%` }} />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  );
+                })()}
             </motion.div>
           )}
           {activeTab === 'Predictive' && (
