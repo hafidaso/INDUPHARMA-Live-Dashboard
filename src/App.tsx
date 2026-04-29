@@ -730,8 +730,8 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
       result = result.filter(m => m.machine_status === statusFilter);
     }
 
-    if (zoneFilter !== 'all') {
-      result = result.filter(m => m.location === zoneFilter);
+    if (zoneFilter !== 'all' && zoneFilter !== '') {
+      result = result.filter(m => m.location?.includes(zoneFilter));
     }
     
     result.sort((a, b) => {
@@ -1913,9 +1913,9 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                                     onClick={() => setSelectedMachineId(m.machine_id)} 
                                   />
                                 ))}
-                                <div className="min-w-[120px] flex items-center justify-center border border-dashed border-slate-700 rounded-xl opacity-20">
-                                   <ArrowRight className="w-6 h-6 text-slate-500" />
-                                   <span className="text-[8px] font-black uppercase ml-2 italic text-center">Flux Production</span>
+                                <div className="min-w-[120px] flex items-center justify-center border border-dashed border-slate-300 rounded-xl bg-slate-50/50">
+                                   <ArrowRight className="w-6 h-6 text-slate-400" />
+                                   <span className="text-[8px] font-black uppercase ml-2 italic text-slate-500">Flux Production</span>
                                 </div>
                              </div>
                           </div>
