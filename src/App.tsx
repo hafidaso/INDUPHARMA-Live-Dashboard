@@ -68,6 +68,7 @@ import { Card } from './components/ui/Card';
 import { SafeChartContainer } from './components/ui/SafeChartContainer';
 import { KPICard } from './components/ui/KPICard';
 import { cn, getStatusColor } from './utils/statusColors';
+import { toMATime, toMATimeFull, toMADateTime } from './utils/dateMA';
 
 import { 
   fetchSheetData, 
@@ -600,7 +601,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
           name: m.name,
           history,
           latestValue: latest?.value != null ? Number(latest.value).toFixed(2) : 'N/A',
-          latestTime: latest?.timestamp ? new Date(latest.timestamp).toLocaleTimeString() : '--:--:--',
+          latestTime: latest?.timestamp ? toMATimeFull(latest.timestamp) : '--:--:--',
           unit,
           chartType: index % 2 === 0 ? 'line' : 'area',
           color: ['#2563eb', '#f59e0b', '#ef4444', '#10b981'][index % 4],
@@ -734,7 +735,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
         
         const newPoint = {
           id: Date.now(),
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: toMATime(),
           nb_alertes: alertsCount,
           disponibilite: Math.round((activeCount / totalCount) * 100),
           performance: 95 - (alertsCount * 5), // dynamic proxy
@@ -2399,7 +2400,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                         {card.chartType === 'area' ? (
                           <AreaChart data={card.history}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                            <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => toMATime(val)} />
                             <YAxis fontSize={10} unit={card.unit ? ` ${card.unit}` : ''} />
                             <Tooltip
                               labelFormatter={(val) => new Date(val as any).toLocaleString()}
@@ -2410,7 +2411,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                         ) : (
                           <LineChart data={card.history}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                            <XAxis dataKey="timestamp" fontSize={8} tickFormatter={(val) => toMATime(val)} />
                             <YAxis fontSize={10} unit={card.unit ? ` ${card.unit}` : ''} />
                             <Tooltip
                               labelFormatter={(val) => new Date(val as any).toLocaleString()}
@@ -3033,7 +3034,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                           <span className="text-[10px] text-slate-400 font-bold">ID: {w.id}</span>
                           <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {new Date(w.generated_at).toLocaleTimeString('fr-FR')}
+                            {toMADateTime(w.generated_at)}
                           </span>
                         </div>
                       </div>

@@ -19,6 +19,7 @@ import {
   IncidentStatus
 } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { toMATime } from '../utils/dateMA';
 
 // Module-level cache: tracks previous machine statuses to detect state transitions
 const machineStatusCache = new Map<string, string>();
@@ -562,7 +563,7 @@ export async function fetchSheetData() {
       machineView,
       kpiSummary,
       histories,
-      lastUpdate:  new Date().toLocaleTimeString('fr-FR'),
+      lastUpdate: toMATime(),
       isConnected: true,
       apiLatencyMs,
     };
@@ -579,7 +580,7 @@ export async function fetchSheetData() {
       machineView: [],
       kpiSummary: [],
       histories: {},
-      lastUpdate: new Date().toLocaleTimeString('fr-FR'),
+      lastUpdate: toMATime(),
       isConnected: false,
     };
   }
