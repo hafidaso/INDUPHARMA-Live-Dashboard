@@ -1405,7 +1405,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
   );
 
   if (authUser.role === 'technician') {
-    const openAlertCount = technicianAlerts.filter((a: any) => a.actionStatus !== 'done').length;
+    const techOpenAlerts = technicianAlerts.filter((a: any) => a.actionStatus !== 'done').length;
     return (
       <div className="min-h-screen bg-[#F7F4EE] text-slate-800">
         {webhookAlertPopup}
@@ -1447,7 +1447,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                   </div>
                   <div className="flex items-end justify-between">
                     <p className="text-3xl font-black text-blue-600">
-                      {Math.max(0, 100 - (openAlertCount * 5))}
+                      {Math.max(0, 100 - (techOpenAlerts * 5))}
                       <span className="text-xs ml-1 opacity-60">%</span>
                     </p>
                     <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full uppercase">Optimal</span>
@@ -1458,7 +1458,7 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                     <AlertTriangle className="w-4 h-4 text-amber-500" />
                     <p className="text-[10px] uppercase font-black text-slate-400">Open Alerts</p>
                   </div>
-                  <p className="text-3xl font-black text-slate-900">{openAlertCount}</p>
+                  <p className="text-3xl font-black text-slate-900">{techOpenAlerts}</p>
                 </Card>
                 <Card>
                   <div className="flex items-center gap-2 mb-2">
@@ -1862,10 +1862,10 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                         <div className={cn(
                           "border rounded-[2rem] p-6 relative transition-all duration-700 bg-white shadow-sm",
                           (zoneFilter === 'all' || zoneFilter === 'Zone A') 
-                            ? "border-emerald-100 opacity-100 scale-100" 
+                            ? "border-emerald-200 opacity-100 scale-100" 
                             : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                         )}>
-                          <div className="absolute -top-3 left-8 bg-white px-3 text-emerald-700 text-[10px] font-black uppercase tracking-[0.3em] border border-emerald-100 rounded-full shadow-sm">Zone A — High-Care</div>
+                          <div className="absolute -top-3 left-8 bg-white px-3 text-emerald-800 text-[10px] font-black uppercase tracking-[0.3em] border border-emerald-100 rounded-full shadow-sm">Zone A — High-Care</div>
                           
                           <div className="grid grid-cols-2 gap-6 mt-4">
                             {/* Sub-Zone: Salle Propre */}
@@ -1923,10 +1923,10 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                         <div className={cn(
                           "border rounded-[2rem] p-6 relative transition-all duration-700 bg-white shadow-sm",
                           (zoneFilter === 'all' || zoneFilter === 'Zone B') 
-                            ? "border-blue-100 opacity-100 scale-100" 
+                            ? "border-blue-200 opacity-100 scale-100" 
                             : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                         )}>
-                          <div className="absolute -top-3 left-8 bg-white px-3 text-blue-700 text-[10px] font-black uppercase tracking-[0.3em] border border-blue-100 rounded-full shadow-sm">Zone B — Primary</div>
+                          <div className="absolute -top-3 left-8 bg-white px-3 text-blue-800 text-[10px] font-black uppercase tracking-[0.3em] border border-blue-100 rounded-full shadow-sm">Zone B — Primary</div>
                           <div className="grid grid-cols-2 gap-6 mt-4">
                              <div className="border border-dashed border-blue-500/20 rounded-2xl p-4">
                                 <span className="text-[9px] text-blue-700 font-black uppercase mb-3 block">Fabrication</span>
@@ -1964,10 +1964,10 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                          <div className={cn(
                            "border rounded-[2rem] p-6 relative transition-all duration-700 flex-1 bg-white shadow-sm",
                            (zoneFilter === 'all' || zoneFilter === 'Zone F') 
-                             ? "border-slate-200 opacity-100 scale-100" 
+                             ? "border-slate-300 opacity-100 scale-100" 
                              : "border-slate-50 opacity-10 scale-[0.98] grayscale pointer-events-none"
                          )}>
-                            <div className="absolute -top-3 left-8 bg-white px-3 text-slate-700 text-[10px] font-black uppercase tracking-[0.3em] border border-slate-200 rounded-full shadow-sm">Zone F — Utilities</div>
+                            <div className="absolute -top-3 left-8 bg-white px-3 text-slate-800 text-[10px] font-black uppercase tracking-[0.3em] border border-slate-200 rounded-full shadow-sm">Zone F — Utilities</div>
                             
                             <div className="mt-4 space-y-6">
                                {filteredMachineView.filter(m => m.location === 'Zone F').map(m => (
