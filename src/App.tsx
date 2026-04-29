@@ -165,33 +165,50 @@ export default function App() {
     if (!data) return;
     setIsAnalyzing(true);
     try {
-      const prompt = `En tant qu'expert en maintenance industrielle pharmaceutique (normes GMP/FDA), analyse les données en temps réel de l'usine INDUPHARMA suivantes et fournis une analyse prédictive stratégique :
+      const prompt = `En tant que "Fusion AI", expert en maintenance industrielle pharmaceutique (normes GMP/FDA), analyse les données en temps réel de l'usine INDUPHARMA suivantes et fournis une analyse prédictive stratégique :
 
 Données Equipements : ${JSON.stringify(data.machines.map((m: any) => ({ nom: m.name, statut: m.status, zone: m.location })))}
 Incidents en cours : ${JSON.stringify(incidentsWithWorkflow.filter((i: any) => i.status !== 'closed').map((i: any) => ({ machine: i.machine_name, severite: i.severity, desc: i.description })))}
 KPI Usine : MTTR moyen = ${dashboardKpiSummary.find((k: any) => k.metric === 'MTTR moyen')?.value} min, Downtime total = ${dashboardKpiSummary.find((k: any) => k.metric === 'Downtime total')?.value} min.
 
 Formatte ta réponse en français avec :
-1. ANALYSE DES RISQUES (3 points clés)
+1. ANALYSE DES RISQUES FUSION AI (3 points clés)
 2. STRATÉGIE DE MAINTENANCE PRIORITAIRE
 3. RECOMMANDATION GMP GLOBALE
 
-Reste concis, technique et professionnel.`;
+Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fusion AI Engine".`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      });
+      // Attempt 1: Gemini 1.5 Flash (v1 stable)
+      // Fallback: Gemini Pro (v1 stable)
+      const models = ['gemini-1.5-flash', 'gemini-pro'];
+      let success = false;
+      let text = "";
 
-      const result = await response.json();
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "L'analyse n'a pas pu être générée.";
-      setAiAnalysis(text);
+      for (const model of models) {
+        if (success) break;
+        try {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            text = result.candidates?.[0]?.content?.parts?.[0]?.text || "L'analyse n'a pas pu être générée.";
+            success = true;
+          }
+        } catch (e) {
+          console.error(`Model ${model} failed:`, e);
+        }
+      }
+
+      setAiAnalysis(text || "⚠️ Impossible de générer l'analyse avec Fusion AI pour le moment.");
     } catch (error) {
-      console.error('Gemini AI Error:', error);
-      setAiAnalysis("⚠️ Erreur de connexion au moteur Gemini AI. Vérifiez votre clé API ou la connexion réseau.");
+      console.error('Fusion AI Error:', error);
+      setAiAnalysis("⚠️ Erreur de connexion au moteur Fusion AI. Vérifiez votre clé API ou la connexion réseau.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -2788,7 +2805,7 @@ Reste concis, technique et professionnel.`;
                      <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Intelligence Prédictive Industrielle</h2>
                    </div>
                    <p className="text-xs text-slate-400 font-medium max-w-2xl leading-relaxed">
-                     Ce module hybride combine des <strong>Règles GMP déterministes</strong> (USP/ISO) avec une <strong>Analyse de Raisonnement IA (Gemini 1.5)</strong> pour anticiper les défaillances critiques et optimiser la conformité.
+                     Ce module hybride combine des <strong>Règles GMP déterministes</strong> (USP/ISO) avec une <strong>Analyse de Raisonnement IA (Fusion AI Engine)</strong> pour anticiper les défaillances critiques et optimiser la conformité.
                    </p>
                  </div>
                  <button 
@@ -2804,12 +2821,12 @@ Reste concis, technique et professionnel.`;
                    {isAnalyzing ? (
                      <>
                        <RefreshCcw className="w-4 h-4 animate-spin" />
-                       Analyse en cours...
+                       Analyse Fusion AI...
                      </>
                    ) : (
                      <>
                        <BrainCircuit className="w-4 h-4" />
-                       Demander Analyse IA Gemini
+                       Générer Rapport Fusion AI
                      </>
                    )}
                  </button>
@@ -2832,7 +2849,7 @@ Reste concis, technique et professionnel.`;
                           <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
                             <Zap className="w-4 h-4 text-purple-400" />
                           </div>
-                          <h3 className="text-sm font-black text-white uppercase tracking-widest">Rapport Stratégique IA Gemini</h3>
+                          <h3 className="text-sm font-black text-white uppercase tracking-widest">Rapport Stratégique Fusion AI</h3>
                         </div>
                         <button onClick={() => setAiAnalysis(null)} className="text-slate-500 hover:text-white transition-colors">
                           <X className="w-5 h-5" />
@@ -2844,7 +2861,7 @@ Reste concis, technique et professionnel.`;
                         </pre>
                       </div>
                       <div className="mt-6 pt-4 border-t border-white/10 flex items-center gap-2 relative z-10">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">Modèle: Gemini 1.5 Flash • Analyse générée en temps réel</span>
+                         <span className="text-[10px] font-bold text-slate-500 uppercase">Propulsé par Fusion AI Engine • Analyse de données INDUPHARMA</span>
                       </div>
                     </Card>
                   </motion.div>
