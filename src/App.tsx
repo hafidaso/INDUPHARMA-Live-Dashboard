@@ -602,10 +602,12 @@ export default function App() {
   };
 
   const handleExportReport = () => {
+    setIsExporting(true);
     try {
       console.log("handleExportReport: Started");
       if (!data) {
         console.warn("handleExportReport: No data available");
+        setIsExporting(false);
         return;
       }
 
@@ -928,7 +930,7 @@ export default function App() {
         finalize();
       };
 
-      setIsExporting(true);
+      // Removed setIsExporting(true) from here
       
       fetch('/logo.png')
         .then((res) => {
@@ -1001,12 +1003,16 @@ export default function App() {
 
   useEffect(() => {
     if (!loading && data && data.isConnected === false) {
-      setShowWebhookAlert(true);
+      // Only show the alert once when connection is lost, not on every refresh
+      setShowWebhookAlert(prev => {
+        if (prev === false && !data.lastUpdate) return true; // Show on first fail
+        return prev;
+      });
     }
     if (data?.isConnected) {
       setShowWebhookAlert(false);
     }
-  }, [data, loading]);
+  }, [data?.isConnected, loading]);
 
   useEffect(() => {
     try {
