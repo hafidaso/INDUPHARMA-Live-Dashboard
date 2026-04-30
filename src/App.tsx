@@ -1255,7 +1255,7 @@ export default function App() {
               {(() => {
                 const activeAlert = technicianAlerts.find((a: any) => a.actionStatus === 'in_progress');
                 if (!activeAlert) return null;
-                const machineData = (data?.machineView ?? []).find((mv: any) => mv.machine_id === activeAlert.id);
+                const machineData = (data?.machineView ?? []).find((mv: any) => mv.machine_id === activeAlert.machine_id);
                 
                 return (
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
