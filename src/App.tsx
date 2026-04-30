@@ -39,6 +39,7 @@ import {
   ListFilter,
   UserCheck,
   ClipboardList,
+  TrendingDown,
   Map,
   Compass
 } from 'lucide-react';
