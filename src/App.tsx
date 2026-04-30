@@ -2947,36 +2947,7 @@ export default function App() {
                 })()}
             </motion.div>
           )}
-                          </div>
-                        </div>
 
-                        {/* Recommendation */}
-                        <div className={cn("rounded-lg p-3 border",
-                          w.risk_level === 'high' && "bg-red-50 border-red-100",
-                          w.risk_level === 'medium' && "bg-amber-50 border-amber-100",
-                          w.risk_level === 'low' && "bg-blue-50 border-blue-100",
-                        )}>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                            <ShieldAlert className="w-3 h-3" /> Recommandation
-                          </p>
-                          <p className="text-xs font-bold text-slate-700">{w.recommendation}</p>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-                          <span className="text-[10px] text-slate-400 font-bold">ID: {w.id}</span>
-                          <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {toMADateTime(w.generated_at)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
         </AnimatePresence>
 
         {/* Detail Modal / Panel for selected machine */}
