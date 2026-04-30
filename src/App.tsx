@@ -39,9 +39,6 @@ import {
   ListFilter,
   UserCheck,
   ClipboardList,
-  BrainCircuit,
-  TrendingDown,
-  ShieldOff,
   Map,
   Compass
 } from 'lucide-react';
