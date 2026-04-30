@@ -40,7 +40,7 @@ import {
   UserCheck,
   ClipboardList,
   TrendingDown,
-  Map,
+  Map as MapIcon,
   Compass
 } from 'lucide-react';
 import { 
@@ -1637,7 +1637,7 @@ export default function App() {
                   <div className="flex items-center justify-between bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-slate-200 mb-2">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-blue-600 rounded-lg">
-                        <Map className="w-5 h-5 text-white" />
+                        <MapIcon className="w-5 h-5 text-white" />
                       </div>
                       <div>
                         <h2 className="text-sm font-black text-slate-900 uppercase tracking-tight">Factory Floor Live Map</h2>
