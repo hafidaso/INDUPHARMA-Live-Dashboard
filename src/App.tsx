@@ -240,6 +240,7 @@ export default function App() {
   });
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const GEMINI_API_KEY = 'AIzaSyDVtERSk3sMfq0YGRmNiJffyXsp8idzMo0';
 
@@ -950,43 +951,34 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
     };
 
     const finalize = async () => {
-      // 1. Download locally
-      doc.save(`${reportId}.pdf`);
-
-      // 2. Send via Email
       try {
+        // 1. Download locally
+        doc.save(`${reportId}.pdf`);
+        
+        // Instant feedback for download
+        console.log("Rapport PDF généré et téléchargé.");
+
+        // 2. Send via Email (Non-blocking attempt)
         const pdfBase64 = doc.output('datauristring');
-        console.log("Envoi du rapport par email en cours...");
         
         const response = await fetch('/api/send-report', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            reportId,
-            pdfBase64,
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reportId, pdfBase64 }),
         });
 
-        const textResult = await response.text();
-        let result;
-        try {
-          result = JSON.parse(textResult);
-        } catch (e) {
-          console.error("Server returned non-JSON:", textResult);
-          throw new Error("Invalid server response. Make sure you are testing on Vercel, not on local Vite dev server.");
-        }
-        
         if (response.ok) {
           alert('Le rapport a été téléchargé et envoyé avec succès par email !');
         } else {
-          console.error("Erreur d'envoi email:", result.error || result);
-          alert(`L'envoi par email a échoué: ${result.error || 'Erreur serveur'}`);
+          const result = await response.json().catch(() => ({ error: 'Erreur serveur' }));
+          console.warn("L'envoi par email a échoué, mais le téléchargement a réussi.", result);
+          alert('Rapport téléchargé avec succès. (Note: L\'envoi par email a échoué, vérifiez la configuration Vercel)');
         }
       } catch (err: any) {
-        console.error("Erreur de connexion email:", err);
-        alert(`Erreur de connexion: ${err.message}`);
+        console.error("Erreur lors de la finalisation du rapport:", err);
+        alert(`Rapport téléchargé. (Note: Erreur lors de l'envoi email: ${err.message})`);
+      } finally {
+        setIsExporting(false);
       }
     };
 
@@ -1164,15 +1156,36 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
       finalize();
     };
 
+    setIsExporting(true);
+    
     fetch('/logo.png')
-      .then((res) => res.blob())
+      .then((res) => {
+        if (!res.ok) throw new Error('Logo not found');
+        return res.blob();
+      })
       .then((blob) => {
         const reader = new FileReader();
-        reader.onload = () => drawReport(String(reader.result || ''));
+        reader.onload = () => {
+          try {
+            drawReport(String(reader.result || ''));
+          } catch (e) {
+            console.error("PDF drawing error with logo:", e);
+            drawReport();
+          }
+        };
         reader.onerror = () => drawReport();
         reader.readAsDataURL(blob);
       })
-      .catch(() => drawReport());
+      .catch((err) => {
+        console.warn("Logo fetch failed, generating report without logo:", err);
+        try {
+          drawReport();
+        } catch (e) {
+          console.error("PDF drawing error without logo:", e);
+          alert("Erreur lors de la génération du PDF. Vérifiez la console.");
+          setIsExporting(false);
+        }
+      });
   };
 
   useEffect(() => {
@@ -1706,10 +1719,18 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
               </div>
               <button
                 onClick={handleExportReport}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all shadow-lg shadow-blue-200 active:scale-95 whitespace-nowrap"
+                disabled={isExporting}
+                className={cn(
+                  "flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all shadow-lg active:scale-95 whitespace-nowrap",
+                  isExporting ? "bg-slate-400 cursor-not-allowed text-white" : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200"
+                )}
               >
-                <Download className="w-4 h-4 text-blue-200" />
-                Exporter Rapport
+                {isExporting ? (
+                  <RefreshCcw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 text-blue-200" />
+                )}
+                {isExporting ? 'Génération...' : 'Exporter Rapport'}
               </button>
             </div>
           </div>
