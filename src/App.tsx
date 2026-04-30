@@ -62,8 +62,7 @@ import {
   ReferenceLine
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import * as jspdfModule from 'jspdf';
-const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
+import { jsPDF } from 'jspdf';
 import { Badge } from './components/ui/Badge';
 import { Card } from './components/ui/Card';
 import { SafeChartContainer } from './components/ui/SafeChartContainer';
@@ -603,348 +602,367 @@ export default function App() {
   };
 
   const handleExportReport = () => {
-    if (!data) return;
-
-    const now = new Date();
-    const reportId = `RPT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${now.getTime().toString().slice(-6)}`;
-    const incidentsLinked: Incident[] = (data.incidents ?? []).map((incident: Incident) => {
-      const progress = incidentProgress[incident.id];
-      const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
-      return { ...incident, status: mappedStatus ?? incident.status };
-    });
-    const openIncidents = incidentsLinked.filter((i: any) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated').length;
-    const activeMachines = (data.machines ?? []).filter((m: any) => m.status === 'active').length;
-    const totalMachines = (data.machines ?? []).length;
-    const availableTechs = (data.technicians ?? []).filter((t: any) => !!t.is_available).length;
-    const availabilityRate = totalMachines > 0 ? Math.round((activeMachines / totalMachines) * 100) : 0;
-    const productionStatus =
-      openIncidents === 0 ? 'Stable' : openIncidents <= 2 ? 'Sous surveillance' : 'Alerte';
-    const productionStatusColor =
-      productionStatus === 'Stable' ? [34, 197, 94] : productionStatus === 'Sous surveillance' ? [245, 158, 11] : [239, 68, 68];
-    const machineRows = (data.machineView ?? [])
-      .map((mv: any) => {
-        const incident = incidentsLinked.find((inc: any) => inc.machine_id === mv.machine_id);
-        return {
-          name: mv.machine_name ?? 'N/A',
-          zone: mv.location ?? 'N/A',
-          status: mv.machine_status ?? 'inactive',
-          criticite: incident?.severity ?? 'none',
-          updatedAt: data.lastUpdate ?? '--:--:--',
-        };
-      })
-      .slice(0, 7);
-
-    const attentionPoints: string[] = [];
-    if (openIncidents > 0) attentionPoints.push(`${openIncidents} incident(s) ouvert(s) en cours de traitement.`);
-    if (availableTechs === 0) attentionPoints.push('Aucun technicien disponible actuellement.');
-    if (availabilityRate < 80) attentionPoints.push(`Disponibilite machines faible (${availabilityRate}%).`);
-    if (attentionPoints.length === 0) attentionPoints.push('Aucun point d attention critique detecte au snapshot.');
-
-    const dynamicRecommendation =
-      (siteRecommendations?.[0]?.recommendation as string | undefined) ??
-      (openIncidents > 0
-        ? 'Prioriser la resolution des incidents ouverts et renforcer le suivi des equipements en alerte.'
-        : 'Maintenir la surveillance active et verifier la disponibilite maintenance avant les pics de production.');
-
-    const zonesMap = new Map<string, { total: number; active: number }>();
-    (data.machines ?? []).forEach((m: any) => {
-      const zone = m.location || 'N/A';
-      const stats = zonesMap.get(zone) || { total: 0, active: 0 };
-      stats.total += 1;
-      if (m.status === 'active') stats.active += 1;
-      zonesMap.set(zone, stats);
-    });
-    const zoneStats = Array.from(zonesMap.entries()).map(([name, stats]) => ({
-      name,
-      total: stats.total,
-      active: stats.active,
-      percent: Math.round((stats.active / stats.total) * 100)
-    })).slice(0, 4);
-
-    const doc = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 12;
-    const contentWidth = pageWidth - margin * 2;
-    const colors = {
-      bg: [247, 244, 238] as [number, number, number],
-      card: [255, 255, 255] as [number, number, number],
-      border: [226, 232, 240] as [number, number, number],
-      title: [15, 23, 42] as [number, number, number],
-      subtitle: [71, 85, 105] as [number, number, number],
-      ok: [34, 197, 94] as [number, number, number],
-      alert: [239, 68, 68] as [number, number, number],
-      neutral: [148, 163, 184] as [number, number, number],
-    };
-
-    const drawCard = (x: number, y: number, w: number, h: number, title: string, value: string, accent?: [number, number, number]) => {
-      doc.setFillColor(...colors.card);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
-      if (accent) {
-        doc.setFillColor(...accent);
-        doc.rect(x, y, 1.6, h, 'F');
+    try {
+      console.log("handleExportReport: Started");
+      if (!data) {
+        console.warn("handleExportReport: No data available");
+        return;
       }
-      doc.setTextColor(...colors.subtitle);
-      doc.setFontSize(9);
-      doc.text(title, x + 4, y + 5.3);
-      doc.setTextColor(...colors.title);
-      doc.setFontSize(12.5);
-      doc.text(value, x + 4, y + 11.3);
-    };
 
-    const drawFooter = () => {
-      const pages = doc.getNumberOfPages();
-      for (let p = 1; p <= pages; p += 1) {
-        doc.setPage(p);
-        doc.setDrawColor(...colors.border);
-        doc.setLineWidth(0.2);
-        doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
-        doc.setTextColor(...colors.subtitle);
-        doc.setFontSize(8);
-        doc.text('Generated by INDUPHARMA Dashboard', margin, pageHeight - 8.3);
-        doc.text('Document interne', pageWidth / 2, pageHeight - 8.3, { align: 'center' });
-        doc.text('Version: v1.0', pageWidth - margin - 28, pageHeight - 8.3);
-        doc.text(`Page ${p}/${pages}`, pageWidth - margin, pageHeight - 8.3, { align: 'right' });
-      }
-    };
+      const now = new Date();
+      const reportId = `RPT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${now.getTime().toString().slice(-6)}`;
+      const incidentsLinked: Incident[] = (data.incidents ?? []).map((incident: Incident) => {
+        const progress = incidentProgress[incident.id];
+        const mappedStatus = progress ? ACTION_TO_INCIDENT[progress.status] : undefined;
+        return { ...incident, status: mappedStatus ?? incident.status };
+      });
+      const openIncidents = incidentsLinked.filter((i: any) => i.status === 'open' || i.status === 'in_progress' || i.status === 'escalated').length;
+      const activeMachines = (data.machines ?? []).filter((m: any) => m.status === 'active').length;
+      const totalMachines = (data.machines ?? []).length;
+      const availableTechs = (data.technicians ?? []).filter((t: any) => !!t.is_available).length;
+      const availabilityRate = totalMachines > 0 ? Math.round((activeMachines / totalMachines) * 100) : 0;
+      const productionStatus =
+        openIncidents === 0 ? 'Stable' : openIncidents <= 2 ? 'Sous surveillance' : 'Alerte';
+      const productionStatusColor =
+        productionStatus === 'Stable' ? [34, 197, 94] : productionStatus === 'Sous surveillance' ? [245, 158, 11] : [239, 68, 68];
+      const machineRows = (data.machineView ?? [])
+        .map((mv: any) => {
+          const incident = incidentsLinked.find((inc: any) => inc.machine_id === mv.machine_id);
+          return {
+            name: mv.machine_name ?? 'N/A',
+            zone: mv.location ?? 'N/A',
+            status: mv.machine_status ?? 'inactive',
+            criticite: incident?.severity ?? 'none',
+            updatedAt: data.lastUpdate ?? '--:--:--',
+          };
+        })
+        .slice(0, 7);
 
-    const finalize = async () => {
+      const attentionPoints: string[] = [];
+      if (openIncidents > 0) attentionPoints.push(`${openIncidents} incident(s) ouvert(s) en cours de traitement.`);
+      if (availableTechs === 0) attentionPoints.push('Aucun technicien disponible actuellement.');
+      if (availabilityRate < 80) attentionPoints.push(`Disponibilite machines faible (${availabilityRate}%).`);
+      if (attentionPoints.length === 0) attentionPoints.push('Aucun point d attention critique detecte au snapshot.');
+
+      const dynamicRecommendation =
+        (siteRecommendations?.[0]?.recommendation as string | undefined) ??
+        (openIncidents > 0
+          ? 'Prioriser la resolution des incidents ouverts et renforcer le suivi des equipements en alerte.'
+          : 'Maintenir la surveillance active et verifier la disponibilite maintenance avant les pics de production.');
+
+      const zonesMap = new Map<string, { total: number; active: number }>();
+      (data.machines ?? []).forEach((m: any) => {
+        const zone = m.location || 'N/A';
+        const stats = zonesMap.get(zone) || { total: 0, active: 0 };
+        stats.total += 1;
+        if (m.status === 'active') stats.active += 1;
+        zonesMap.set(zone, stats);
+      });
+      const zoneStats = Array.from(zonesMap.entries()).map(([name, stats]) => ({
+        name,
+        total: stats.total,
+        active: stats.active,
+        percent: Math.round((stats.active / stats.total) * 100)
+      })).slice(0, 4);
+
+      console.log("handleExportReport: Initializing jsPDF");
+      let doc: any;
       try {
-        // 1. Download locally
-        doc.save(`${reportId}.pdf`);
-        
-        // Instant feedback for download
-        console.log("Rapport PDF généré et téléchargé.");
-
-        // 2. Send via Email (Non-blocking attempt)
-        const pdfBase64 = doc.output('datauristring');
-        
-        const response = await fetch('/api/send-report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reportId, pdfBase64 }),
-        });
-
-        if (response.ok) {
-          alert('Le rapport a été téléchargé et envoyé avec succès par email !');
-        } else {
-          const result = await response.json().catch(() => ({ error: 'Erreur serveur' }));
-          console.warn("L'envoi par email a échoué, mais le téléchargement a réussi.", result);
-          alert('Rapport téléchargé avec succès. (Note: L\'envoi par email a échoué, vérifiez la configuration Vercel)');
-        }
-      } catch (err: any) {
-        console.error("Erreur lors de la finalisation du rapport:", err);
-        alert(`Rapport téléchargé. (Note: Erreur lors de l'envoi email: ${err.message})`);
-      } finally {
+        doc = new jsPDF('p', 'mm', 'a4');
+      } catch (e) {
+        console.error("handleExportReport: jsPDF constructor failed", e);
+        alert("Erreur: Impossible d'initialiser le générateur PDF.");
         setIsExporting(false);
+        return;
       }
-    };
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 12;
+      const contentWidth = pageWidth - margin * 2;
+      const colors = {
+        bg: [247, 244, 238] as [number, number, number],
+        card: [255, 255, 255] as [number, number, number],
+        border: [226, 232, 240] as [number, number, number],
+        title: [15, 23, 42] as [number, number, number],
+        subtitle: [71, 85, 105] as [number, number, number],
+        ok: [34, 197, 94] as [number, number, number],
+        alert: [239, 68, 68] as [number, number, number],
+        neutral: [148, 163, 184] as [number, number, number],
+      };
 
-    const drawReport = (logoDataUrl?: string) => {
-      doc.setFillColor(...colors.bg);
-      doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
-      let y = 12;
-
-      // Header
-      doc.setFillColor(...colors.card);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(margin, y, contentWidth, 28, 3, 3, 'FD');
-
-      if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', margin + 3, y + 4.5, 32, 11, 'logo', 'FAST');
-      } else {
-        doc.setTextColor(...colors.title);
-        doc.setFontSize(12);
-        doc.text('INDUPHARMA', margin + 4, y + 10);
-      }
-
-      doc.setTextColor(...colors.title);
-      doc.setFontSize(17);
-      doc.text('Rapport de Production', margin + 40, y + 8.8);
-      doc.setTextColor(...colors.subtitle);
-      doc.setFontSize(9.2);
-      doc.text('Snapshot operationnel des equipements critiques', margin + 40, y + 14.4);
-      doc.text(`Rapport ID: ${reportId}`, margin + 40, y + 19.2);
-      doc.text(`Genere le: ${now.toLocaleString('fr-FR')}`, margin + 40, y + 23.8);
-
-      y += 33;
-
-      // Executive summary
-      doc.setFillColor(...colors.card);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(margin, y, contentWidth, 14, 2.5, 2.5, 'FD');
-      const summary = `Snapshot live: ${totalMachines} machine(s), ${activeMachines} active(s), ${openIncidents} incident(s) ouvert(s), ${availableTechs} technicien(s) disponible(s).`;
-      doc.setTextColor(...colors.title);
-      doc.setFontSize(9.1);
-      const summaryLines = doc.splitTextToSize(summary, contentWidth - 8);
-      doc.text(summaryLines, margin + 4, y + 5.4);
-      y += 17;
-
-      // KPI cards (5)
-      const cardGap = 2.6;
-      const cardW = (contentWidth - cardGap * 4) / 5;
-      const cardH = 15;
-      drawCard(margin, y, cardW, cardH, 'Machines actives', `${activeMachines}/${totalMachines}`, colors.ok);
-      drawCard(margin + (cardW + cardGap) * 1, y, cardW, cardH, 'Incidents ouverts', String(openIncidents), openIncidents > 0 ? colors.alert : colors.ok);
-      drawCard(margin + (cardW + cardGap) * 2, y, cardW, cardH, 'Techniciens dispo.', String(availableTechs), availableTechs > 0 ? colors.ok : colors.alert);
-      drawCard(margin + (cardW + cardGap) * 3, y, cardW, cardH, 'Disponibilite', `${availabilityRate}%`, availabilityRate >= 80 ? colors.ok : colors.alert);
-      drawCard(margin + (cardW + cardGap) * 4, y, cardW, cardH, 'Statut global', productionStatus, productionStatusColor as [number, number, number]);
-      y += cardH + 5.5;
-
-      // Equipments section
-      doc.setTextColor(...colors.title);
-      doc.setFontSize(11.5);
-      doc.text('Equipements (snapshot)', margin, y);
-      y += 3.2;
-
-      doc.setFillColor(241, 245, 249);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, 'FD');
-      doc.setTextColor(...colors.subtitle);
-      doc.setFontSize(8.3);
-      doc.text('Nom', margin + 2, y + 4.5);
-      doc.text('Zone', margin + 56, y + 4.5);
-      doc.text('Statut', margin + 107, y + 4.5);
-      doc.text('Criticite', margin + 132, y + 4.5);
-      doc.text('Maj', margin + 162, y + 4.5);
-      y += 8;
-
-      machineRows.forEach((m: any, idx: number) => {
-        const rowH = 6.8;
-        if (idx % 2 === 0) {
-          doc.setFillColor(250, 250, 249);
-          doc.rect(margin, y - 4.6, contentWidth, rowH, 'F');
+      const drawCard = (x: number, y: number, w: number, h: number, title: string, value: string, accent?: [number, number, number]) => {
+        doc.setFillColor(...colors.card);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
+        if (accent) {
+          doc.setFillColor(...accent);
+          doc.rect(x, y, 1.6, h, 'F');
         }
-        const severity = String(m.criticite ?? 'none').toUpperCase();
-        const statusColor = m.status === 'active' ? colors.ok : colors.alert;
-
-        doc.setTextColor(...colors.title);
-        doc.setFontSize(8.2);
-        doc.text(String(m.name ?? 'N/A').slice(0, 26), margin + 2, y);
         doc.setTextColor(...colors.subtitle);
-        doc.text(String(m.zone ?? 'N/A').slice(0, 22), margin + 56, y);
-
-        doc.setFillColor(...statusColor);
-        doc.roundedRect(margin + 105, y - 3.8, 18, 5.2, 1.8, 1.8, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(7.5);
-        doc.text(m.status === 'active' ? 'OK' : 'ALERTE', margin + 114, y - 0.2, { align: 'center' });
-
+        doc.setFontSize(9);
+        doc.text(title, x + 4, y + 5.3);
         doc.setTextColor(...colors.title);
-        doc.setFontSize(8.1);
-        doc.text(severity, margin + 132, y);
-        doc.setTextColor(...colors.subtitle);
-        doc.text(String(m.updatedAt ?? '--:--:--'), margin + 162, y);
+        doc.setFontSize(12.5);
+        doc.text(value, x + 4, y + 11.3);
+      };
 
-        y += 6.3;
-      });
-
-      y += 5.5;
-
-      // Productivity by Zone section
-      doc.setTextColor(...colors.title);
-      doc.setFontSize(11.5);
-      doc.text('Performance par Zone', margin, y);
-      y += 3.2;
-
-      doc.setFillColor(241, 245, 249);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, 'FD');
-      doc.setTextColor(...colors.subtitle);
-      doc.setFontSize(8.3);
-      doc.text('Nom de la Zone', margin + 2, y + 4.5);
-      doc.text('Total Equip.', margin + 70, y + 4.5);
-      doc.text('En Service', margin + 110, y + 4.5);
-      doc.text('Productivite (%)', margin + 150, y + 4.5);
-      y += 8;
-
-      zoneStats.forEach((z: any, idx: number) => {
-        if (idx % 2 === 0) {
-          doc.setFillColor(250, 250, 249);
-          doc.rect(margin, y - 4.6, contentWidth, 6.8, 'F');
+      const drawFooter = () => {
+        const pages = doc.getNumberOfPages();
+        for (let p = 1; p <= pages; p += 1) {
+          doc.setPage(p);
+          doc.setDrawColor(...colors.border);
+          doc.setLineWidth(0.2);
+          doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+          doc.setTextColor(...colors.subtitle);
+          doc.setFontSize(8);
+          doc.text('Generated by INDUPHARMA Dashboard', margin, pageHeight - 8.3);
+          doc.text('Document interne', pageWidth / 2, pageHeight - 8.3, { align: 'center' });
+          doc.text('Version: v1.0', pageWidth - margin - 28, pageHeight - 8.3);
+          doc.text(`Page ${p}/${pages}`, pageWidth - margin, pageHeight - 8.3, { align: 'right' });
         }
-        doc.setTextColor(...colors.title);
-        doc.setFontSize(8.2);
-        doc.text(z.name, margin + 2, y);
-        doc.text(String(z.total), margin + 70, y);
-        doc.text(String(z.active), margin + 110, y);
-        
-        const zColor = z.percent >= 80 ? colors.ok : (z.percent >= 50 ? [245, 158, 11] as [number, number, number] : colors.alert);
-        doc.setTextColor(...zColor);
-        doc.setFontSize(8.5);
-        doc.text(`${z.percent}%`, margin + 150, y);
-        y += 6.3;
-      });
+      };
 
-      y += 2.5;
-
-      // Points d'attention
-      const attentionText = attentionPoints.join(' ');
-      doc.setFillColor(255, 250, 245);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(margin, y, contentWidth, 13, 2.3, 2.3, 'FD');
-      doc.setTextColor(...colors.title);
-      doc.setFontSize(9.5);
-      doc.text('Points d attention', margin + 3, y + 4.5);
-      doc.setTextColor(...colors.subtitle);
-      doc.setFontSize(8.3);
-      doc.text(doc.splitTextToSize(attentionText, contentWidth - 8), margin + 3, y + 8.8);
-      y += 15.5;
-
-      // Recommendation IA
-      doc.setFillColor(243, 248, 255);
-      doc.setDrawColor(...colors.border);
-      doc.roundedRect(margin, y, contentWidth, 10.5, 2.3, 2.3, 'FD');
-      doc.setTextColor(...colors.title);
-      doc.setFontSize(9.3);
-      doc.text('Recommandation IA', margin + 3, y + 4.2);
-      doc.setTextColor(...colors.subtitle);
-      doc.setFontSize(8.2);
-      doc.text(
-        doc.splitTextToSize(
-          dynamicRecommendation,
-          contentWidth - 8
-        ),
-        margin + 3,
-        y + 8.1
-      );
-
-      drawFooter();
-      finalize();
-    };
-
-    setIsExporting(true);
-    
-    fetch('/logo.png')
-      .then((res) => {
-        if (!res.ok) throw new Error('Logo not found');
-        return res.blob();
-      })
-      .then((blob) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            drawReport(String(reader.result || ''));
-          } catch (e) {
-            console.error("PDF drawing error with logo:", e);
-            drawReport();
-          }
-        };
-        reader.onerror = () => drawReport();
-        reader.readAsDataURL(blob);
-      })
-      .catch((err) => {
-        console.warn("Logo fetch failed, generating report without logo:", err);
+      const finalize = async () => {
         try {
-          drawReport();
-        } catch (e) {
-          console.error("PDF drawing error without logo:", e);
-          alert("Erreur lors de la génération du PDF. Vérifiez la console.");
+          // 1. Download locally
+          doc.save(`${reportId}.pdf`);
+          
+          // Instant feedback for download
+          console.log("Rapport PDF généré et téléchargé.");
+
+          // 2. Send via Email (Non-blocking attempt)
+          const pdfBase64 = doc.output('datauristring');
+          
+          const response = await fetch('/api/send-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reportId, pdfBase64 }),
+          });
+
+          if (response.ok) {
+            alert('Le rapport a été téléchargé et envoyé avec succès par email !');
+          } else {
+            const result = await response.json().catch(() => ({ error: 'Erreur serveur' }));
+            console.warn("L'envoi par email a échoué, mais le téléchargement a réussi.", result);
+            alert('Rapport téléchargé avec succès. (Note: L\'envoi par email a échoué, vérifiez la configuration Vercel)');
+          }
+        } catch (err: any) {
+          console.error("Erreur lors de la finalisation du rapport:", err);
+          alert(`Rapport téléchargé. (Note: Erreur lors de l'envoi email: ${err.message})`);
+        } finally {
           setIsExporting(false);
         }
-      });
+      };
+
+      const drawReport = (logoDataUrl?: string) => {
+        doc.setFillColor(...colors.bg);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        let y = 12;
+
+        // Header
+        doc.setFillColor(...colors.card);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(margin, y, contentWidth, 28, 3, 3, 'FD');
+
+        if (logoDataUrl) {
+          doc.addImage(logoDataUrl, 'PNG', margin + 3, y + 4.5, 32, 11, 'logo', 'FAST');
+        } else {
+          doc.setTextColor(...colors.title);
+          doc.setFontSize(12);
+          doc.text('INDUPHARMA', margin + 4, y + 10);
+        }
+
+        doc.setTextColor(...colors.title);
+        doc.setFontSize(17);
+        doc.text('Rapport de Production', margin + 40, y + 8.8);
+        doc.setTextColor(...colors.subtitle);
+        doc.setFontSize(9.2);
+        doc.text('Snapshot operationnel des equipements critiques', margin + 40, y + 14.4);
+        doc.text(`Rapport ID: ${reportId}`, margin + 40, y + 19.2);
+        doc.text(`Genere le: ${now.toLocaleString('fr-FR')}`, margin + 40, y + 23.8);
+
+        y += 33;
+
+        // Executive summary
+        doc.setFillColor(...colors.card);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(margin, y, contentWidth, 14, 2.5, 2.5, 'FD');
+        const summary = `Snapshot live: ${totalMachines} machine(s), ${activeMachines} active(s), ${openIncidents} incident(s) ouvert(s), ${availableTechs} technicien(s) disponible(s).`;
+        doc.setTextColor(...colors.title);
+        doc.setFontSize(9.1);
+        const summaryLines = doc.splitTextToSize(summary, contentWidth - 8);
+        doc.text(summaryLines, margin + 4, y + 5.4);
+        y += 17;
+
+        // KPI cards (5)
+        const cardGap = 2.6;
+        const cardW = (contentWidth - cardGap * 4) / 5;
+        const cardH = 15;
+        drawCard(margin, y, cardW, cardH, 'Machines actives', `${activeMachines}/${totalMachines}`, colors.ok);
+        drawCard(margin + (cardW + cardGap) * 1, y, cardW, cardH, 'Incidents ouverts', String(openIncidents), openIncidents > 0 ? colors.alert : colors.ok);
+        drawCard(margin + (cardW + cardGap) * 2, y, cardW, cardH, 'Techniciens dispo.', String(availableTechs), availableTechs > 0 ? colors.ok : colors.alert);
+        drawCard(margin + (cardW + cardGap) * 3, y, cardW, cardH, 'Disponibilite', `${availabilityRate}%`, availabilityRate >= 80 ? colors.ok : colors.alert);
+        drawCard(margin + (cardW + cardGap) * 4, y, cardW, cardH, 'Statut global', productionStatus, productionStatusColor as [number, number, number]);
+        y += cardH + 5.5;
+
+        // Equipments section
+        doc.setTextColor(...colors.title);
+        doc.setFontSize(11.5);
+        doc.text('Equipements (snapshot)', margin, y);
+        y += 3.2;
+
+        doc.setFillColor(241, 245, 249);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, 'FD');
+        doc.setTextColor(...colors.subtitle);
+        doc.setFontSize(8.3);
+        doc.text('Nom', margin + 2, y + 4.5);
+        doc.text('Zone', margin + 56, y + 4.5);
+        doc.text('Statut', margin + 107, y + 4.5);
+        doc.text('Criticite', margin + 132, y + 4.5);
+        doc.text('Maj', margin + 162, y + 4.5);
+        y += 8;
+
+        machineRows.forEach((m: any, idx: number) => {
+          const rowH = 6.8;
+          if (idx % 2 === 0) {
+            doc.setFillColor(250, 250, 249);
+            doc.rect(margin, y - 4.6, contentWidth, rowH, 'F');
+          }
+          const severity = String(m.criticite ?? 'none').toUpperCase();
+          const statusColor = m.status === 'active' ? colors.ok : colors.alert;
+
+          doc.setTextColor(...colors.title);
+          doc.setFontSize(8.2);
+          doc.text(String(m.name ?? 'N/A').slice(0, 26), margin + 2, y);
+          doc.setTextColor(...colors.subtitle);
+          doc.text(String(m.zone ?? 'N/A').slice(0, 22), margin + 56, y);
+
+          doc.setFillColor(...statusColor);
+          doc.roundedRect(margin + 105, y - 3.8, 18, 5.2, 1.8, 1.8, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(7.5);
+          doc.text(m.status === 'active' ? 'OK' : 'ALERTE', margin + 114, y - 0.2, { align: 'center' });
+
+          doc.setTextColor(...colors.title);
+          doc.setFontSize(8.1);
+          doc.text(severity, margin + 132, y);
+          doc.setTextColor(...colors.subtitle);
+          doc.text(String(m.updatedAt ?? '--:--:--'), margin + 162, y);
+
+          y += 6.3;
+        });
+
+        y += 5.5;
+
+        // Productivity by Zone section
+        doc.setTextColor(...colors.title);
+        doc.setFontSize(11.5);
+        doc.text('Performance par Zone', margin, y);
+        y += 3.2;
+
+        doc.setFillColor(241, 245, 249);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, 'FD');
+        doc.setTextColor(...colors.subtitle);
+        doc.setFontSize(8.3);
+        doc.text('Nom de la Zone', margin + 2, y + 4.5);
+        doc.text('Total Equip.', margin + 70, y + 4.5);
+        doc.text('En Service', margin + 110, y + 4.5);
+        doc.text('Productivite (%)', margin + 150, y + 4.5);
+        y += 8;
+
+        zoneStats.forEach((z: any, idx: number) => {
+          if (idx % 2 === 0) {
+            doc.setFillColor(250, 250, 249);
+            doc.rect(margin, y - 4.6, contentWidth, 6.8, 'F');
+          }
+          doc.setTextColor(...colors.title);
+          doc.setFontSize(8.2);
+          doc.text(z.name, margin + 2, y);
+          doc.text(String(z.total), margin + 70, y);
+          doc.text(String(z.active), margin + 110, y);
+          
+          const zColor = z.percent >= 80 ? colors.ok : (z.percent >= 50 ? [245, 158, 11] as [number, number, number] : colors.alert);
+          doc.setTextColor(...zColor);
+          doc.setFontSize(8.5);
+          doc.text(`${z.percent}%`, margin + 150, y);
+          y += 6.3;
+        });
+
+        y += 2.5;
+
+        // Points d'attention
+        const attentionText = attentionPoints.join(' ');
+        doc.setFillColor(255, 250, 245);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(margin, y, contentWidth, 13, 2.3, 2.3, 'FD');
+        doc.setTextColor(...colors.title);
+        doc.setFontSize(9.5);
+        doc.text('Points d attention', margin + 3, y + 4.5);
+        doc.setTextColor(...colors.subtitle);
+        doc.setFontSize(8.3);
+        doc.text(doc.splitTextToSize(attentionText, contentWidth - 8), margin + 3, y + 8.8);
+        y += 15.5;
+
+        // Recommendation IA
+        doc.setFillColor(243, 248, 255);
+        doc.setDrawColor(...colors.border);
+        doc.roundedRect(margin, y, contentWidth, 10.5, 2.3, 2.3, 'FD');
+        doc.setTextColor(...colors.title);
+        doc.setFontSize(9.3);
+        doc.text('Recommandation IA', margin + 3, y + 4.2);
+        doc.setTextColor(...colors.subtitle);
+        doc.setFontSize(8.2);
+        doc.text(
+          doc.splitTextToSize(
+            dynamicRecommendation,
+            contentWidth - 8
+          ),
+          margin + 3,
+          y + 8.1
+        );
+
+        drawFooter();
+        finalize();
+      };
+
+      setIsExporting(true);
+      
+      fetch('/logo.png')
+        .then((res) => {
+          if (!res.ok) throw new Error('Logo not found');
+          return res.blob();
+        })
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              drawReport(String(reader.result || ''));
+            } catch (e) {
+              console.error("PDF drawing error with logo:", e);
+              drawReport();
+            }
+          };
+          reader.onerror = () => drawReport();
+          reader.readAsDataURL(blob);
+        })
+        .catch((err) => {
+          console.warn("Logo fetch failed, generating report without logo:", err);
+          try {
+            drawReport();
+          } catch (e) {
+            console.error("PDF drawing error without logo:", e);
+            alert("Erreur lors de la génération du PDF. Vérifiez la console.");
+            setIsExporting(false);
+          }
+        });
+    } catch (err: any) {
+      console.error("handleExportReport: Critical error", err);
+      alert("Erreur critique lors de l'export: " + err.message);
+      setIsExporting(false);
+    }
   };
 
   useEffect(() => {
