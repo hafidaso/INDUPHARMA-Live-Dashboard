@@ -62,7 +62,8 @@ import {
   ReferenceLine
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { jsPDF } from 'jspdf';
+import * as jspdfModule from 'jspdf';
+const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 import { Badge } from './components/ui/Badge';
 import { Card } from './components/ui/Card';
 import { SafeChartContainer } from './components/ui/SafeChartContainer';
@@ -660,7 +661,7 @@ export default function App() {
       percent: Math.round((stats.active / stats.total) * 100)
     })).slice(0, 4);
 
-    const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+    const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const margin = 12;
