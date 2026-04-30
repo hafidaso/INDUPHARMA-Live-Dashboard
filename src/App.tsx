@@ -1321,6 +1321,12 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Description</p>
             <p className="text-sm text-slate-600 font-medium">{activeCriticalAlert.description}</p>
           </div>
+          {activeCriticalAlert.root_cause && (
+            <div>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Causes Probables</p>
+              <p className="text-sm text-red-600 font-bold italic">{activeCriticalAlert.root_cause}</p>
+            </div>
+          )}
         </div>
 
         <button
@@ -3434,6 +3440,9 @@ Reste concis, technique et professionnel. Signe l'analyse par "Généré par Fus
                                 <Badge status={inc.status}>{inc.status}</Badge>
                               </div>
                               <p className="text-sm font-bold text-slate-800">{inc.description}</p>
+                              {inc.root_cause && (
+                                <p className="text-xs font-bold text-red-600 italic">Cause: {inc.root_cause}</p>
+                              )}
                               <div className="flex items-center gap-2 pt-2 text-[10px] text-slate-400 font-bold uppercase">
                                 <Clock className="w-3 h-3" /> Detecté à {inc.detected_at}
                               </div>

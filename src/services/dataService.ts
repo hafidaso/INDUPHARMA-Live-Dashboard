@@ -63,6 +63,7 @@ type ProductionEquipement = {
   statut: string;
   nb_alertes_ouvertes: number;
   etat_global: string;
+  root_causes?: string[];
   mesures_recentes?: ProductionMeasure[];
   techniciens?: ProductionTechnicien[];
   techniciens_count?: number;
@@ -114,6 +115,7 @@ function normalizeProductionResponse(raw: any): ProductionResponse {
     statut: String(e?.statut ?? e?.status ?? 'inactive'),
     nb_alertes_ouvertes: Number(e?.nb_alertes_ouvertes ?? e?.open_alerts ?? 0),
     etat_global: String(e?.etat_global ?? e?.state ?? 'ok'),
+    root_causes: Array.isArray(e?.root_causes) ? e.root_causes : [],
     mesures_recentes: Array.isArray(e?.mesures_recentes) ? e.mesures_recentes : [],
     techniciens: Array.isArray(e?.techniciens) ? e.techniciens : [],
     techniciens_count: Number(e?.techniciens_count ?? 0),
@@ -393,6 +395,7 @@ export async function fetchSheetData() {
           resolved_at: techAction?.completed_at || undefined,
           severity: toIncidentSeverity(e.criticite_gmp),
           description: `${e.nb_alertes_ouvertes} open alert(s) on ${e.nom}`,
+          root_cause: e.root_causes && e.root_causes.length > 0 ? e.root_causes.join(', ') : undefined,
           status: (techAction?.status === 'done' ? 'closed' : 'open') as IncidentStatus,
           created_by: 'auto',
         };
